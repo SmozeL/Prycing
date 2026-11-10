@@ -1,0 +1,294 @@
+{
+  "date_valorisation": "2026-10-30",
+  "horodatage_releve": "2026-10-30T16:00:00-04:00",
+  "sources": {
+    "eom_marking_prices_list.csv": {
+      "url": "https://cdn.cboe.com/resources/marking_prices/eom_marking_prices_list.csv",
+      "sha256": "d97c7b89067c37f20a31500844025677ff57e1e3169c755b7814bc84e00f929d"
+    },
+    "SPX_History.csv": {
+      "url": "https://cdn.cboe.com/api/global/us_indices/daily_prices/SPX_History.csv",
+      "sha256": "be08637a0bec621563fa1b180966cbd421f4ac10252b00c64a66befc749f1b24"
+    },
+    "RUT_History.csv": {
+      "url": "https://cdn.cboe.com/api/global/us_indices/daily_prices/RUT_History.csv",
+      "sha256": "62a17e04ed0cd6e0a3fade0305ebec3f588f59f4ad897fc00ea6c5a09e5bf1d7"
+    },
+    "feds200628.csv": {
+      "url": "https://www.federalreserve.gov/data/yield-curve-tables/feds200628.csv",
+      "sha256": "3130a6f0c7af3bf85d3b6076db19085a45c09932745a56cc3c45b60f496c4051"
+    }
+  },
+  "documentation": {
+    "cotations": "https://www.cboe.com/markets/us/options/market-statistics/product-data/proprietary-index-marking-prices/",
+    "calendrier": "https://www.cboe.com/about/hours/us-options/",
+    "courbe": "https://www.federalreserve.gov/data/nominal-yield-curve.htm"
+  },
+  "conventions": {
+    "base_temps": "ACT/365F",
+    "spot": "Clôture officielle de l'indice",
+    "echeances": "Séries SPXW et RUTW à règlement de clôture PM",
+    "fixings": "Clôture du dernier jour ouvré du mois, échéance incluse",
+    "taux": "Zéro-coupon continu Treasury, estimation Svensson de la Fed",
+    "cotations": "Derniers bid et ask Cboe diffusés",
+    "anciennete_max_secondes": 60,
+    "spread_relatif_max": 0.15,
+    "fenetre_spot": 0.05,
+    "fenetre_forward": 0.015,
+    "calibration": "Forward médian projeté dans l'intervalle commun de parité. Volatilité médiane des deux jambes aux trois strikes les plus proches.",
+    "diagnostic": "Le forward utilise toutes les paires retenues. Les cotations témoins sont réservées pour le contrôle de la volatilité.",
+    "rendements_historiques": 252
+  },
+  "actifs": [
+    {
+      "symbole": "SPX",
+      "racine": "SPXW",
+      "spot": 7580.07,
+      "volatilite_historique": 0.12821311906620103,
+      "historique_debut": "2025-10-29",
+      "echeances": [
+        {
+          "date": "2027-01-29",
+          "maturite": 0.2493150684931507,
+          "taux": 0.041630020426556814,
+          "dividende": 0.0034872964605531936,
+          "volatilite": 0.1539861290092519,
+          "forward": 7652.496927068873,
+          "fixings": [
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29"
+          ],
+          "dates_observation": [
+            0.08493150684931507,
+            0.16986301369863013,
+            0.2493150684931507
+          ],
+          "diagnostic": {
+            "paires_retenues": 45,
+            "forward_borne_basse": 7650.227955043463,
+            "forward_borne_haute": 7653.549235693163,
+            "largeur_forward_pb": 4.381596277738167,
+            "strikes_calibration": [
+              7650.0,
+              7655.0,
+              7645.0
+            ],
+            "volatilite_implicite_min": 0.15094977599034037,
+            "volatilite_implicite_max": 0.15752766606582055,
+            "temoins_dans_spread": 8,
+            "temoins_total": 84,
+            "mediane_ecart_hors_spread_pb": 6.759634442889148
+          }
+        },
+        {
+          "date": "2027-03-31",
+          "maturite": 0.41643835616438357,
+          "taux": 0.04225629801338226,
+          "dividende": 0.005901526265588285,
+          "volatilite": 0.1577936974327167,
+          "forward": 7695.701727768606,
+          "fixings": [
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29",
+            "2027-02-26",
+            "2027-03-31"
+          ],
+          "dates_observation": [
+            0.08493150684931507,
+            0.16986301369863013,
+            0.2493150684931507,
+            0.32602739726027397,
+            0.41643835616438357
+          ],
+          "diagnostic": {
+            "paires_retenues": 46,
+            "forward_borne_basse": 7693.428262056585,
+            "forward_borne_haute": 7697.907827556679,
+            "largeur_forward_pb": 5.9096624438750505,
+            "strikes_calibration": [
+              7695.0,
+              7700.0,
+              7690.0
+            ],
+            "volatilite_implicite_min": 0.15716758223903907,
+            "volatilite_implicite_max": 0.1583689264834203,
+            "temoins_dans_spread": 5,
+            "temoins_total": 86,
+            "mediane_ecart_hors_spread_pb": 8.358460545311951
+          }
+        },
+        {
+          "date": "2027-06-30",
+          "maturite": 0.6657534246575343,
+          "taux": 0.04305335688116898,
+          "dividende": 0.00521651687595652,
+          "volatilite": 0.16396422586979106,
+          "forward": 7773.437243576451,
+          "fixings": [
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29",
+            "2027-02-26",
+            "2027-03-31",
+            "2027-04-30",
+            "2027-05-28",
+            "2027-06-30"
+          ],
+          "dates_observation": [
+            0.08493150684931507,
+            0.16986301369863013,
+            0.2493150684931507,
+            0.32602739726027397,
+            0.41643835616438357,
+            0.4986301369863014,
+            0.5753424657534246,
+            0.6657534246575343
+          ],
+          "diagnostic": {
+            "paires_retenues": 32,
+            "forward_borne_basse": 7770.360749312115,
+            "forward_borne_haute": 7776.027263409952,
+            "largeur_forward_pb": 7.475543230915579,
+            "strikes_calibration": [
+              7775.0,
+              7770.0,
+              7780.0
+            ],
+            "volatilite_implicite_min": 0.16349482081160674,
+            "volatilite_implicite_max": 0.16412898902736456,
+            "temoins_dans_spread": 3,
+            "temoins_total": 58,
+            "mediane_ecart_hors_spread_pb": 9.616858400178375
+          }
+        }
+      ]
+    },
+    {
+      "symbole": "RUT",
+      "racine": "RUTW",
+      "spot": 2811.8443,
+      "volatilite_historique": 0.18179048294797773,
+      "historique_debut": "2025-10-29",
+      "echeances": [
+        {
+          "date": "2027-01-29",
+          "maturite": 0.2493150684931507,
+          "taux": 0.041630020426556814,
+          "dividende": 0.010598084126092373,
+          "volatilite": 0.19547745830826013,
+          "forward": 2833.683149952524,
+          "fixings": [
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29"
+          ],
+          "dates_observation": [
+            0.08493150684931507,
+            0.16986301369863013,
+            0.2493150684931507
+          ],
+          "diagnostic": {
+            "paires_retenues": 8,
+            "forward_borne_basse": 2828.174646337011,
+            "forward_borne_haute": 2838.278976736543,
+            "largeur_forward_pb": 35.9348858666607,
+            "strikes_calibration": [
+              2830.0,
+              2840.0,
+              2820.0
+            ],
+            "volatilite_implicite_min": 0.19479145577986828,
+            "volatilite_implicite_max": 0.1976389204287755,
+            "temoins_dans_spread": 8,
+            "temoins_total": 10,
+            "mediane_ecart_hors_spread_pb": 0.0
+          }
+        },
+        {
+          "date": "2027-03-31",
+          "maturite": 0.41643835616438357,
+          "taux": 0.04225629801338226,
+          "dividende": 0.012604609518453599,
+          "volatilite": 0.2000230733698326,
+          "forward": 2846.780489646243,
+          "fixings": [
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29",
+            "2027-02-26",
+            "2027-03-31"
+          ],
+          "dates_observation": [
+            0.08493150684931507,
+            0.16986301369863013,
+            0.2493150684931507,
+            0.32602739726027397,
+            0.41643835616438357
+          ],
+          "diagnostic": {
+            "paires_retenues": 8,
+            "forward_borne_basse": 2843.259120844115,
+            "forward_borne_haute": 2850.303014254101,
+            "largeur_forward_pb": 25.05079463320974,
+            "strikes_calibration": [
+              2850.0,
+              2840.0,
+              2860.0
+            ],
+            "volatilite_implicite_min": 0.19896788234056817,
+            "volatilite_implicite_max": 0.20110681176435702,
+            "temoins_dans_spread": 4,
+            "temoins_total": 10,
+            "mediane_ecart_hors_spread_pb": 1.1386688687800877
+          }
+        },
+        {
+          "date": "2027-06-30",
+          "maturite": 0.6657534246575343,
+          "taux": 0.04305335688116898,
+          "dividende": 0.011254223459101952,
+          "volatilite": 0.20596324904270696,
+          "forward": 2872.0067014258652,
+          "fixings": [
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29",
+            "2027-02-26",
+            "2027-03-31",
+            "2027-04-30",
+            "2027-05-28",
+            "2027-06-30"
+          ],
+          "dates_observation": [
+            0.08493150684931507,
+            0.16986301369863013,
+            0.2493150684931507,
+            0.32602739726027397,
+            0.41643835616438357,
+            0.4986301369863014,
+            0.5753424657534246,
+            0.6657534246575343
+          ],
+          "diagnostic": {
+            "paires_retenues": 9,
+            "forward_borne_basse": 2864.1031366186744,
+            "forward_borne_haute": 2879.9282129864446,
+            "largeur_forward_pb": 56.280059204452314,
+            "strikes_calibration": [
+              2870.0,
+              2880.0,
+              2860.0
+            ],
+            "volatilite_implicite_min": 0.20514621221565732,
+            "volatilite_implicite_max": 0.20676926159700462,
+            "temoins_dans_spread": 12,
+            "temoins_total": 12,
+            "mediane_ecart_hors_spread_pb": 0.0
+          }
+        }
+      ]
+    }
+  ]
+}
