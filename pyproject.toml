@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Étude Monte-Carlo d'options asiatiques arithmétiques sur SPX et RUT"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = ["numpy>=1.26,<3", "scipy>=1.13,<2"]
+dependencies = ["numpy>=1.26,<3", "scipy>=1.13,<2", "matplotlib>=3.8,<4"]
 
 [project.optional-dependencies]
 rapport = ["reportlab>=4.2,<5"]

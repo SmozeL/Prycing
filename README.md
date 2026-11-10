@@ -12,7 +12,16 @@ python -m pip install -e '.[rapport]'
 python run_tp.py
 ```
 
-Dans VS Code, ouvrir le dossier du dépôt, sélectionner l'interpréteur de `.venv`, puis cliquer sur **Run Python File** dans `run_tp.py`. Le script lit le relevé calibré versionné et écrit ses résultats dans `resultats/`.
+Dans VS Code, ouvrir le dossier du dépôt, sélectionner l'interpréteur de `.venv`, puis cliquer sur **Run Python File** dans `run_tp.py`. Le script lit le relevé calibré versionné, écrit les CSV et les PNG dans `resultats/`, puis ouvre les deux figures Matplotlib.
+
+À chaque lancement, le script tire une nouvelle graine et l'inscrit dans le terminal et dans `prix.csv`. Les prix Monte-Carlo fluctuent avec les trajectoires simulées. Les prix européens, calculés par formule, sont déterminés par les seules entrées du marché. Pour rejouer les mêmes trajectoires avec les mêmes réglages, passer la graine affichée avec `--graine`. Les chronos restent sensibles à la machine et à sa charge.
+
+```bash
+python run_tp.py --graine 42
+python run_tp.py --graine 42 --sans-affichage
+```
+
+`--sans-affichage` enregistre les graphiques sans ouvrir de fenêtres. Si le projet est déjà installé, relancer `python -m pip install -e '.[rapport]'` pour ajouter Matplotlib.
 
 ```bash
 python -m unittest discover -s tests -v
@@ -58,6 +67,8 @@ Le pricer simule les transitions exactes de Black-Scholes entre fixings, avec le
 - `performance.csv` compare les temps médians et les demi-largeurs d'IC effectivement obtenues sur les contrats centraux, pour une cible de 1 point de base du spot. Le coût du pilote est inclus. Le champ `cible_atteinte` signale le résultat de la mesure.
 - `convergence.csv` donne le coût et la précision sur plusieurs tailles de simulation.
 - `sensibilite.csv` mesure l'effet du passage de la volatilité implicite à la volatilité historique sur les mêmes contrats centraux. Cette variation de prix et l'incertitude Monte-Carlo sont présentées séparément.
+- `comparaison_prix.png` compare les primes asiatiques contrôlées et européennes par indice, type d'option, strike relatif et échéance.
+- `precision_temps.png` place les deux méthodes sur le même graphique pour chaque indice. Les axes logarithmiques montrent le temps médian et la demi-largeur maximale des IC à 95 %, avec une cible de 1 point de base du spot.
 
 Le chronométrage dépend de la machine. Les intervalles asymptotiques mesurent l'erreur d'échantillonnage sous Black-Scholes avec les paramètres retenus. Les diagnostics sur options européennes décrivent le calibrage des entrées du modèle.
 

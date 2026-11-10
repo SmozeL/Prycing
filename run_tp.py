@@ -2,9 +2,11 @@
 
 import argparse
 from pathlib import Path
+from secrets import randbelow
 
 from asian_pricing.donnees import charger_marche
 from asian_pricing.experiences import analyser_marche, exporter_resultats
+from asian_pricing.rng import PERIODE
 
 _REPERTOIRE = Path(__file__).resolve().parent
 
@@ -39,18 +41,21 @@ def main():
     parser.add_argument("--sortie", type=Path, default=_REPERTOIRE / "resultats")
     parser.add_argument("--simulations", type=int, default=50_000)
     parser.add_argument("--pilote", type=int, default=5_000)
-    parser.add_argument("--graine", type=int, default=42)
+    parser.add_argument("--graine", type=int, help="Graine Monte-Carlo à rejouer. Tirée à chaque lancement par défaut.")
     parser.add_argument("--repetitions", type=int, default=5)
     parser.add_argument("--plafond", type=int, default=2_000_000)
+    parser.add_argument("--sans-affichage", action="store_true", help="Enregistre les PNG sans ouvrir de fenêtres.")
     args = parser.parse_args()
+    graine = randbelow(PERIODE) + 1 if args.graine is None else args.graine
 
     try:
         marche = charger_marche(args.donnees)
         indices = ", ".join(actif["symbole"] for actif in marche["actifs"])
         print(f"Étude du {marche['date_valorisation']} · {indices}", flush=True)
+        print(f"Graine Monte-Carlo : {graine}", flush=True)
         resultats = analyser_marche(
             marche, simulations=args.simulations, pilote=args.pilote,
-            graine=args.graine, repetitions=args.repetitions, plafond=args.plafond,
+            graine=graine, repetitions=args.repetitions, plafond=args.plafond,
         )
         exporter_resultats(resultats, args.sortie)
     except (ValueError, OSError) as erreur:
@@ -58,6 +63,25 @@ def main():
 
     afficher(resultats)
     print(f"Grille complète et mesures enregistrées dans {args.sortie.resolve()}")
+
+    import matplotlib
+
+    if args.sans_affichage:
+        matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    from asian_pricing.figures import creer_figures
+
+    try:
+        for nom, figure in creer_figures(resultats).items():
+            chemin = args.sortie / f"{nom}.png"
+            figure.savefig(chemin, dpi=160)
+            print(f"Figure enregistrée dans {chemin.resolve()}")
+    except OSError as erreur:
+        parser.error(str(erreur))
+
+    if not args.sans_affichage and matplotlib.get_backend().lower() != "agg":
+        plt.show()
 
 
 if __name__ == "__main__":
