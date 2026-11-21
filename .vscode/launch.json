@@ -7,7 +7,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/run_tp.py",
       "cwd": "${workspaceFolder}",
-      "args": ["--sans-affichage", "--graine", "2026", "--sortie", "resultats/googl"],
+      "args": ["--graine", "2026"],
       "console": "integratedTerminal"
     }
   ]

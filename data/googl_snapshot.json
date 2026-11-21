@@ -1,14 +1,9 @@
 {
   "date_valorisation": "2025-12-31",
-  "horodatage_releve": "2025-12-31T16:00:00-05:00",
-  "devise": "USD",
-  "unite_prix": "USD par action",
   "strike_ratios": [
-    0.8,
     0.9,
     1.0,
-    1.1,
-    1.4
+    1.1
   ],
   "cible_precision_pb": 5,
   "sources": {
@@ -19,32 +14,20 @@
     "clotures": {
       "url": "https://api.nasdaq.com/api/quote/GOOGL/chart?assetclass=stocks&fromdate=2024-12-31&todate=2025-12-31",
       "page_nasdaq": "https://www.nasdaq.com/market-activity/stocks/googl/historical",
-      "reference": "Cours journaliers Nasdaq (série chart, champ close).",
-      "nombre_clotures": 251,
-      "premiere_date": "2024-12-31",
-      "derniere_date": "2025-12-31",
+      "reference": "251 clôtures Nasdaq du 31 décembre 2024 au 31 décembre 2025 (champ close).",
       "sha256_csv_normalise": "41c95396f87c7ee0732cab1bab19f8373f8782432d0a50e0e6d099c1ce6bb4ed",
       "normalisation_csv": "En-tête date,cloture, ordre croissant, dates ISO, deux décimales, fins de ligne LF."
     },
     "dividendes": {
       "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm",
-      "reference": "Alphabet, formulaire 10-K 2025, dividendes en numéraire déclarés par action.",
-      "montants_usd": [
-        0.2,
-        0.21,
-        0.21,
-        0.21
-      ],
-      "total_usd": 0.83
+      "reference": "Alphabet, formulaire 10-K 2025, dividendes déclarés de 0,83 USD par action."
     },
     "taux": {
       "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value=2025",
-      "reference": "Rendement Treasury au pair à un an, 31 décembre 2025.",
-      "valeur_pct": 3.48
+      "reference": "Rendement Treasury au pair à un an de 3,48 % au 31 décembre 2025."
     },
     "calendrier": {
       "url": "https://www.nasdaqtrader.com/Trader.aspx?id=Calendar",
-      "regle_seances": "https://listingcenter.nasdaq.com/assets/rulebook/nasdaq/filings/SR-NASDAQ-2021-093.pdf",
       "reference": "Dates de dernière séance mensuelle selon le calendrier US, échéance comprise."
     }
   },
@@ -53,31 +36,13 @@
     "spot": "Clôture Nasdaq en USD par action Alphabet de classe A.",
     "taux": "Rendement Treasury 1 an utilisé comme proxy de taux continu constant.",
     "dividende": "0,83 USD déclarés en 2025, rapportés au spot pour un rendement continu approché.",
-    "volatilite": "Écart-type d’échantillon des log-rendements de clôture, annualisé par racine de 252.",
-    "echeances": "Contrats définis pour l’étude à environ 6, 12 et 24 mois.",
+    "volatilite": "Écart-type d’échantillon des 250 log-rendements de clôture de 2025, annualisé par racine de 252.",
     "fixings": "Dernière séance du mois, échéance incluse, spot initial exclu."
   },
   "actifs": [
     {
       "symbole": "GOOGL",
-      "racine": "GOOGL",
-      "nom": "Alphabet Inc., action de classe A",
       "spot": 313.0,
-      "volatilite_historique": 0.3223020666361277,
-      "volatilite_alternative": 0.2976782240145743,
-      "fenetres_volatilite": {
-        "reference": {
-          "nombre_rendements": 250,
-          "debut": "2024-12-31",
-          "fin": "2025-12-31"
-        },
-        "alternative": {
-          "nombre_rendements": 63,
-          "debut": "2025-10-01",
-          "fin": "2025-12-31"
-        },
-        "seances_par_an": 252
-      },
       "echeances": [
         {
           "date": "2026-06-30",
@@ -85,7 +50,6 @@
           "taux": 0.0348,
           "dividende": 0.0026517571884984025,
           "volatilite": 0.3223020666361277,
-          "forward": 318.0298339649889,
           "fixings": [
             "2026-01-30",
             "2026-02-27",
@@ -109,7 +73,6 @@
           "taux": 0.0348,
           "dividende": 0.0026517571884984025,
           "volatilite": 0.3223020666361277,
-          "forward": 323.22589152399223,
           "fixings": [
             "2026-01-30",
             "2026-02-27",
@@ -145,7 +108,6 @@
           "taux": 0.0348,
           "dividende": 0.0026517571884984025,
           "volatilite": 0.3223020666361277,
-          "forward": 333.78586885456735,
           "fixings": [
             "2026-01-30",
             "2026-02-27",

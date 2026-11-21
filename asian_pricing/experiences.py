@@ -1,4 +1,4 @@
-"""Grille du TP, sensibilité et chronométrage du Monte-Carlo."""
+"""Grille de prix et mesure du gain apporté par le contrôle géométrique."""
 
 import csv
 import math
@@ -9,261 +9,154 @@ from time import perf_counter
 
 from .pricer import pricer_grille
 
+
 _TYPES = ("call", "put")
 _METHODES = ("naive", "controle")
-_STRIKES_RELATIFS = (0.90, 1.00, 1.10)
-_CIBLE_PB = 1.0
 _MARGE_DIMENSIONNEMENT = 1.10
 _MIN_PRODUCTION = 1_024
+_MAX_PRODUCTION = 2_000_000
 
 
 class _Simulations:
-    """Réserve des plages consécutives et permet un appariement explicite."""
+    """Enchaîne des sous-flux disjoints à partir d’une même graine."""
 
-    def __init__(self, graine, pilote):
+    def __init__(self, spot, graine, pilote):
+        self.spot = spot
         self.graine = graine
         self.pilote = pilote
         self.prochain = 0
 
-    def __call__(
-        self, actif, echeance, strikes, simulations, methode, *,
-        volatilite=None, decalage_partage=None,
-    ):
-        depart = self.prochain if decalage_partage is None else decalage_partage
+    def __call__(self, echeance, strikes, trajectoires, methode):
         resultat = pricer_grille(
-            actif["spot"],
-            strikes,
-            echeance["maturite"],
-            echeance["taux"],
-            echeance["dividende"],
-            echeance["volatilite"] if volatilite is None else volatilite,
-            echeance["dates_observation"],
-            simulations=simulations,
-            pilote=self.pilote,
-            graine=self.graine,
-            decalage=depart,
-            methode=methode,
-            niveau_confiance=0.95,
+            self.spot, strikes, echeance["maturite"], echeance["taux"],
+            echeance["dividende"], echeance["volatilite"], echeance["dates_observation"],
+            simulations=trajectoires, pilote=self.pilote, graine=self.graine,
+            decalage=self.prochain, methode=methode,
         )
-        if decalage_partage is None:
-            self.prochain += resultat["uniformes_reserves"]
+        self.prochain += resultat["uniformes_reserves"]
         return resultat["strikes"]
 
 
-def _bornes(estimation):
-    return estimation["ic"] if estimation["ic"] is not None else (None, None)
+def _demi_ic(estimation):
+    intervalle = estimation["ic"]
+    if intervalle is None:
+        return None
+    bas, haut = intervalle
+    return (haut - bas) / 2
 
 
-def _demi_ic_pb(estimation, spot):
-    bas, haut = _bornes(estimation)
-    return None if bas is None else (haut - bas) * 5_000 / spot
-
-
-def _prix(marche, actif, echeance, estimations, simulations, pilote, graine, decalage):
+def _grille_prix(calculer, echeances, ratios, simulations):
+    strikes = [calculer.spot * ratio for ratio in ratios]
     lignes = []
-    spot = actif["spot"]
-    for contrat in estimations:
-        for type_option in _TYPES:
-            option = contrat[type_option]
-            naif = option["naive"]
-            controle = option["controle"]
-            bas_naif, haut_naif = _bornes(naif)
-            bas_controle, haut_controle = _bornes(controle)
-            se_naif, se_controle = naif["erreur_type"], controle["erreur_type"]
-            gain = None
-            if bas_naif is not None and bas_controle is not None and se_controle > 0:
-                gain = se_naif / se_controle
-            ecart = controle["prix"] - option["europeenne"]
-            lignes.append({
-                "indice": actif["symbole"],
-                "racine": actif["racine"],
-                "date_valorisation": marche["date_valorisation"],
-                "echeance": echeance["date"],
-                "maturite": echeance["maturite"],
-                "observations": len(echeance["dates_observation"]),
-                "spot": spot,
-                "strike": contrat["strike"],
-                "moneyness": contrat["strike"] / spot,
-                "type": type_option,
-                "taux": echeance["taux"],
-                "dividende": echeance["dividende"],
-                "volatilite": echeance["volatilite"],
-                "simulations": simulations,
-                "pilote": pilote,
-                "graine": graine,
-                "decalage": decalage,
-                "naif": naif["prix"],
-                "controle": controle["prix"],
-                "europeenne": option["europeenne"],
-                "geometrique": option["geometrique"],
-                "se_naif": se_naif,
-                "se_controle": se_controle,
-                "ic95_inf_naif": bas_naif,
-                "ic95_sup_naif": haut_naif,
-                "ic95_inf_controle": bas_controle,
-                "ic95_sup_controle": haut_controle,
-                "beta": controle.get("beta"),
-                "correlation": controle.get("correlation"),
-                "gain_precision": gain,
-                "ecart_points": ecart,
-                "ecart_pb_spot": 10_000 * ecart / spot,
-            })
+    for echeance in echeances:
+        contrats = calculer(echeance, strikes, simulations, "les_deux")
+        for ratio, contrat in zip(ratios, contrats):
+            for type_option in _TYPES:
+                option = contrat[type_option]
+                lignes.append({
+                    "echeance": echeance["date"],
+                    "fixings": len(echeance["dates_observation"]),
+                    "strike": contrat["strike"],
+                    "strike_spot": ratio,
+                    "type": type_option,
+                    "prix_europeen": option["europeenne"],
+                    "prix_asiatique_brut": option["naive"]["prix"],
+                    "prix_asiatique_controle": option["controle"]["prix"],
+                    "demi_ic_brut_usd": _demi_ic(option["naive"]),
+                    "demi_ic_controle_usd": _demi_ic(option["controle"]),
+                    "trajectoires": simulations,
+                    "pilote": calculer.pilote,
+                    "graine": calculer.graine,
+                })
     return lignes
 
 
-def _sensibilite(calculer, actif, echeance, reference, simulations, decalage):
-    """Change seulement σ et apparie les trajectoires aux prix de référence."""
-    spot = actif["spot"]
-    sigma_alternative = actif.get("volatilite_alternative")
-    if sigma_alternative is None:
-        sigma_alternative = actif["volatilite_historique"]
-    alternative, = calculer(
-        actif, echeance, [spot], simulations, "les_deux",
-        volatilite=sigma_alternative, decalage_partage=decalage,
-    )
-    lignes = []
-    for type_option in _TYPES:
-        prix_reference = reference[type_option]["controle"]
-        prix_alternatif = alternative[type_option]["controle"]
-        lignes.append({
-            "indice": actif["symbole"],
-            "echeance": echeance["date"],
-            "type": type_option,
-            "spot": spot,
-            "strike": spot,
-            "decalage": decalage,
-            "volatilite_reference": echeance["volatilite"],
-            "volatilite_alternative": sigma_alternative,
-            "prix_reference": prix_reference["prix"],
-            "prix_alternatif": prix_alternatif["prix"],
-            "demi_ic95_reference_pb": _demi_ic_pb(prix_reference, spot),
-            "demi_ic95_alternatif_pb": _demi_ic_pb(prix_alternatif, spot),
-            "ecart_alternatif_reference_pb": (
-                10_000 * (prix_alternatif["prix"] - prix_reference["prix"]) / spot
-            ),
-        })
-    return lignes
+def _tailles_cibles(echantillon, taille_echantillon, cible):
+    """Dimensionne N grâce à la décroissance de la demi-largeur en 1/√N.
 
-
-def _tailles_cibles(echantillon, spot, dimensionnement, plafond, cible_pb):
-    """Estime N par la loi en 1/√N, avec une marge de 10 % et un plancher.
-
-    Pour chaque méthode, une même taille doit satisfaire les deux payoffs.
-    On prend donc la plus grande demi-largeur de l’échantillon de dimensionnement.
+    Pour chaque méthode, on retient la plus grande demi-largeur des deux
+    payoffs et on ajoute 10 % de trajectoires pour tenir compte de son
+    estimation par échantillonnage.
     """
     tailles = {}
     for methode in _METHODES:
-        demi_largeurs = [_demi_ic_pb(echantillon[t][methode], spot) for t in _TYPES]
-        if any(largeur is None for largeur in demi_largeurs):
-            tailles[methode] = (plafond, True)
+        largeurs = [_demi_ic(echantillon[t][methode]) for t in _TYPES]
+        if None in largeurs:
+            tailles[methode] = _MAX_PRODUCTION
             continue
-        facteur = max(demi_largeurs) / cible_pb
-        n_demande = max(
-            _MIN_PRODUCTION,
-            math.ceil(_MARGE_DIMENSIONNEMENT * dimensionnement * facteur**2),
-        )
-        tailles[methode] = (min(n_demande, plafond), n_demande > plafond)
+        n = math.ceil(_MARGE_DIMENSIONNEMENT * taille_echantillon * (max(largeurs) / cible)**2)
+        tailles[methode] = min(_MAX_PRODUCTION, max(_MIN_PRODUCTION, n))
     return tailles
 
 
-def _chronometrer(calculer, actif, echeance, tailles, repetitions):
-    """Alterne l'ordre des méthodes et mesure le pricer sur de nouveaux sous-flux."""
-    spot = actif["spot"]
+def _chronometrer(calculer, echeance, tailles, repetitions, regime, cible=None):
+    """Alterne l’ordre des méthodes. Le temps du contrôle inclut le pilote."""
     temps = {methode: [] for methode in _METHODES}
     largeurs = {methode: {t: [] for t in _TYPES} for methode in _METHODES}
     for i in range(repetitions):
         ordre = _METHODES if i % 2 == 0 else _METHODES[::-1]
         for methode in ordre:
             debut = perf_counter()
-            contrat, = calculer(actif, echeance, [spot], tailles[methode], methode)
+            contrat, = calculer(echeance, [calculer.spot], tailles[methode], methode)
             temps[methode].append((perf_counter() - debut) * 1_000)
-            for t in _TYPES:
-                largeurs[methode][t].append(_demi_ic_pb(contrat[t][methode], spot))
+            for type_option in _TYPES:
+                largeurs[methode][type_option].append(_demi_ic(contrat[type_option][methode]))
 
     lignes = []
     for methode in _METHODES:
-        # Un IC manquant rend la précision non établie pour ce type.
         maxima = {
-            t: None if any(v is None for v in valeurs) else max(valeurs)
-            for t, valeurs in largeurs[methode].items()
+            type_option: None if None in valeurs else max(valeurs)
+            for type_option, valeurs in largeurs[methode].items()
         }
-        pire = None if any(v is None for v in maxima.values()) else max(maxima.values())
+        pire = None if None in maxima.values() else max(maxima.values())
+        atteinte = None if cible is None else pire is not None and pire <= cible
         lignes.append({
-            "indice": actif["symbole"],
-            "echeance": echeance["date"],
+            "regime": regime,
             "methode": methode,
-            "simulations": tailles[methode],
+            "echeance": echeance["date"],
+            "strike": calculer.spot,
+            "trajectoires": tailles[methode],
             "pilote": calculer.pilote if methode == "controle" else 0,
             "repetitions": repetitions,
-            "temps_ms": median(temps[methode]),
-            "demi_ic95_call_pb": maxima["call"],
-            "demi_ic95_put_pb": maxima["put"],
-            "demi_ic95_max_pb": pire,
+            "temps_median_ms": median(temps[methode]),
+            "demi_ic_call_usd": maxima["call"],
+            "demi_ic_put_usd": maxima["put"],
+            "demi_ic_max_usd": pire,
+            "cible_usd": cible,
+            "cible_atteinte": atteinte,
+            "graine": calculer.graine,
         })
     return lignes
 
 
-def analyser_marche(
-    marche, *, simulations=50_000, pilote=5_000, graine=42, repetitions=5,
-    dimensionnement=30_000, plafond=2_000_000,
-):
-    """Construit la grille du TP et mesure la précision au strike égal au spot."""
-    if min(simulations, pilote, dimensionnement, plafond) < 2 or repetitions < 1:
+def analyser_marche(marche, *, graine=2026, simulations=50_000, pilote=5_000, repetitions=5):
+    """Produit les prix de la grille et le benchmark au strike égal au spot."""
+    if min(simulations, pilote) < 2 or repetitions < 1:
         raise ValueError("Il faut au moins deux trajectoires et une répétition.")
 
-    strike_ratios = tuple(marche.get("strike_ratios", _STRIKES_RELATIFS))
-    if (len(strike_ratios) != len(set(strike_ratios)) or 1.0 not in strike_ratios
-            or any(not math.isfinite(ratio) or ratio <= 0 for ratio in strike_ratios)):
-        raise ValueError("Les ratios strike/spot doivent être positifs, distincts et inclure 1.")
-    position_atm = strike_ratios.index(1.0)
-    cible_pb = float(marche.get("cible_precision_pb", _CIBLE_PB))
-    if not math.isfinite(cible_pb) or cible_pb <= 0:
-        raise ValueError("La cible de précision doit être positive et finie.")
+    actif, = marche["actifs"]
+    echeances = sorted(actif["echeances"], key=lambda e: e["date"])
+    reference = min(echeances, key=lambda e: abs(e["maturite"] - 1))
+    calculer = _Simulations(actif["spot"], graine, pilote)
+    prix = _grille_prix(calculer, echeances, marche["strike_ratios"], simulations)
 
-    calculer = _Simulations(graine, pilote)
-    resultats = {nom: [] for nom in ("prix", "performance", "convergence", "sensibilite")}
-    for actif in marche["actifs"]:
-        echeances = sorted(actif["echeances"], key=lambda e: e["date"])
-        centrale = echeances[len(echeances) // 2]
-        strikes = [actif["spot"] * ratio for ratio in strike_ratios]
-        for echeance in echeances:
-            decalage = calculer.prochain
-            estimations = calculer(actif, echeance, strikes, simulations, "les_deux")
-            resultats["prix"].extend(
-                _prix(marche, actif, echeance, estimations, simulations, pilote, graine, decalage)
-            )
-            if echeance is centrale:
-                resultats["sensibilite"].extend(
-                    _sensibilite(calculer, actif, echeance, estimations[position_atm],
-                                 simulations, decalage)
-                )
-
-        # La grille a déjà échauffé le pricer. Le dimensionnement ne fait pas
-        # partie du chronométrage. Le pilote de chaque production contrôlée si.
-        echantillon, = calculer(actif, centrale, [actif["spot"]], dimensionnement, "les_deux")
-        tailles = _tailles_cibles(echantillon, actif["spot"], dimensionnement, plafond, cible_pb)
-        mesures = _chronometrer(
-            calculer, actif, centrale, {m: v[0] for m, v in tailles.items()}, repetitions,
-        )
-        for mesure in mesures:
-            demi_largeur = mesure["demi_ic95_max_pb"]
-            resultats["performance"].append({
-                **mesure,
-                "cible_pb": cible_pb,
-                "dimensionnement": dimensionnement,
-                "cible_atteinte": demi_largeur is not None and demi_largeur <= cible_pb,
-                "plafond_atteint": tailles[mesure["methode"]][1],
-            })
-
-        for n in sorted({min(simulations, taille) for taille in (2_000, 10_000, 50_000)}):
-            resultats["convergence"].extend(
-                _chronometrer(calculer, actif, centrale, dict.fromkeys(_METHODES, n), repetitions)
-            )
-    return resultats
+    # Cette simulation dimensionne les essais ciblés avec un lot distinct.
+    cible = actif["spot"] * marche["cible_precision_pb"] / 10_000
+    taille_echantillon = 30_000
+    echantillon, = calculer(reference, [actif["spot"]], taille_echantillon, "les_deux")
+    tailles = _tailles_cibles(echantillon, taille_echantillon, cible)
+    performance = _chronometrer(
+        calculer, reference, dict.fromkeys(_METHODES, simulations),
+        repetitions, "trajectoires_egales",
+    )
+    performance.extend(_chronometrer(
+        calculer, reference, tailles, repetitions, "precision_cible", cible,
+    ))
+    return {"prix": prix, "performance": performance}
 
 
 def exporter_resultats(resultats, dossier):
-    """Écrit les CSV du TP à partir des résultats en mémoire."""
+    """Prépare les deux CSV avant de remplacer les fichiers de sortie."""
     dossier = Path(dossier)
     dossier.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=dossier) as temporaire:
