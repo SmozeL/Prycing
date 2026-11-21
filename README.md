@@ -16,7 +16,7 @@ python -m pip install -e .
 python run_tp.py
 ```
 
-Dans VS Code, sélectionner l’interpréteur de `.venv` et le profil **Lancer l’étude GOOGL**, puis appuyer sur **Ctrl+F5**. Chaque lancement tire une nouvelle graine, l’affiche dans le terminal et l’enregistre dans les deux CSV de `resultats/etude_googl/`. Pour retrouver les prix d’une exécution, relancer `python run_tp.py --graine` avec la valeur affichée dans le terminal.
+Dans VS Code, sélectionner l’interpréteur de `.venv` et le profil **Lancer l’étude GOOGL**, puis appuyer sur **Ctrl+F5**. Chaque lancement tire une nouvelle graine, l’affiche dans le terminal et l’enregistre dans `resultats/prix.csv` et `resultats/performance.csv`. Pour retrouver les prix d’une exécution, relancer `python run_tp.py --graine` avec la valeur affichée dans le terminal.
 
 ## Données de marché
 

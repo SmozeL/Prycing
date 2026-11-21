@@ -9,7 +9,7 @@ from asian_pricing.experiences import analyser_marche, exporter_resultats
 from asian_pricing.rng import PERIODE
 
 
-_SORTIE = Path(__file__).resolve().parent / "resultats" / "etude_googl"
+_SORTIE = Path(__file__).resolve().parent / "resultats"
 
 
 def main():
