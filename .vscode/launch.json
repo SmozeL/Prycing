@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Reproduire l’étude SPY",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_tp.py",
+      "cwd": "${workspaceFolder}",
+      "args": ["--sans-affichage", "--graine", "2026"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

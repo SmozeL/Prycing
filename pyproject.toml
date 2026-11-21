@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prycing-asian"
 version = "1.0.0"
-description = "Étude Monte-Carlo d'options asiatiques arithmétiques sur SPX et RUT"
+description = "Étude Monte-Carlo d'options asiatiques arithmétiques sur le SPDR S&P 500 ETF (SPY)"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.26,<3", "scipy>=1.13,<2", "matplotlib>=3.8,<4"]

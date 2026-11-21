@@ -11,9 +11,9 @@ from asian_pricing.rng import PERIODE
 _REPERTOIRE = Path(__file__).resolve().parent
 
 
-def afficher(resultats):
-    print("\nPrimes à la monnaie en points d'indice")
-    print(f"{'Indice':<7} {'Échéance':<11} {'Type':<5} {'Naïf':>10} "
+def afficher(resultats, unite_prix="points d'indice"):
+    print(f"\nPrimes à la monnaie en {unite_prix}")
+    print(f"{'Actif':<7} {'Échéance':<11} {'Type':<5} {'Naïf':>10} "
           f"{'Contrôlé':>10} {'Européen':>10} {'Écart (pb)':>11}")
     for ligne in resultats["prix"]:
         if ligne["moneyness"] == 1.0:
@@ -21,8 +21,9 @@ def afficher(resultats):
                   f"{ligne['naif']:10.3f} {ligne['controle']:10.3f} "
                   f"{ligne['europeenne']:10.3f} {ligne['ecart_pb_spot']:+11.2f}")
 
-    print("\nPrécision cible à la monnaie · demi-IC à 95 % de 1 pb du spot")
-    print(f"{'Indice':<7} {'Méthode':<11} {'Trajectoires':>12} "
+    cible = resultats["performance"][0]["cible_pb"]
+    print(f"\nPrécision cible à la monnaie · demi-IC à 95 % de {cible:g} pb du spot")
+    print(f"{'Actif':<7} {'Méthode':<11} {'Trajectoires':>12} "
           f"{'Pilote':>8} {'Temps (ms)':>11} {'Demi-IC max':>12} {'Cible':>8}")
     for ligne in resultats["performance"]:
         methode = "Naïf" if ligne["methode"] == "naive" else "Contrôlé"
@@ -37,7 +38,8 @@ def afficher(resultats):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--donnees", type=Path, default=_REPERTOIRE / "data" / "market_snapshot.json")
+    parser.add_argument("--donnees", type=Path, default=_REPERTOIRE / "data" / "spy_snapshot.json",
+                        help="Instantané de marché JSON. L'étude utilise SPY par défaut.")
     parser.add_argument("--sortie", type=Path, default=_REPERTOIRE / "resultats")
     parser.add_argument("--simulations", type=int, default=50_000)
     parser.add_argument("--pilote", type=int, default=5_000)
@@ -50,8 +52,8 @@ def main():
 
     try:
         marche = charger_marche(args.donnees)
-        indices = ", ".join(actif["symbole"] for actif in marche["actifs"])
-        print(f"Étude du {marche['date_valorisation']} · {indices}", flush=True)
+        symboles = ", ".join(actif["symbole"] for actif in marche["actifs"])
+        print(f"Étude du {marche['date_valorisation']} · {symboles}", flush=True)
         print(f"Graine Monte-Carlo : {graine}", flush=True)
         resultats = analyser_marche(
             marche, simulations=args.simulations, pilote=args.pilote,
@@ -61,7 +63,7 @@ def main():
     except (ValueError, OSError) as erreur:
         parser.error(str(erreur))
 
-    afficher(resultats)
+    afficher(resultats, marche.get("unite_prix", "points d'indice"))
     print(f"Grille complète et mesures enregistrées dans {args.sortie.resolve()}")
 
     import matplotlib

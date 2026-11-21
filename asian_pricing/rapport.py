@@ -4,11 +4,15 @@ import argparse
 import csv
 import json
 import math
+from datetime import date
+from html import escape
 from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph
 
@@ -37,21 +41,25 @@ def lire_csv(dossier, nom):
         return list(csv.DictReader(fichier))
 
 
+def _police(pdf, nom):
+    return getattr(pdf, "_polices_prycing", {}).get(nom, nom)
+
+
 def texte(pdf, x, y, valeur, *, taille=10, police="Helvetica", couleur=ENCRE):
     pdf.setFillColor(couleur)
-    pdf.setFont(police, taille)
+    pdf.setFont(_police(pdf, police), taille)
     pdf.drawString(x, y, valeur)
 
 
 def centre(pdf, x, y, valeur, *, taille=9, couleur=ENCRE, gras=False):
     pdf.setFillColor(couleur)
-    pdf.setFont("Helvetica-Bold" if gras else "Helvetica", taille)
+    pdf.setFont(_police(pdf, "Helvetica-Bold" if gras else "Helvetica"), taille)
     pdf.drawCentredString(x, y, valeur)
 
 
 def paragraphe(pdf, html, y, *, taille=10, leading=14, couleur=TEXTE):
     style = ParagraphStyle(
-        "rapport", fontName="Helvetica", fontSize=taille,
+        "rapport", fontName=_police(pdf, "Helvetica"), fontSize=taille,
         leading=leading, textColor=couleur,
     )
     p = Paragraph(html, style)
@@ -71,14 +79,14 @@ def trait(pdf, x, y, x2, y2, couleur=GRIS):
     pdf.line(x, y, x2, y2)
 
 
-def entete(pdf, numero, titre, sous_titre):
+def entete(pdf, numero, titre, sous_titre, releve="30 octobre 2026"):
     rectangle(pdf, MARGE, H - 47, 23, 3, SARCELLE)
     texte(pdf, MARGE + 32, H - 48, "PRYCING  /  PROJET ING 4  /  SUJET 2",
           taille=9, police="Helvetica-Bold", couleur=SARCELLE)
     texte(pdf, MARGE, H - 93, titre, taille=32, police="Times-Roman")
     texte(pdf, MARGE, H - 112, sous_titre, taille=10, couleur=TEXTE)
     trait(pdf, MARGE, 46, W - MARGE, 46)
-    texte(pdf, MARGE, 30, "Relevé de marché du 30 octobre 2026", taille=8, couleur=TEXTE)
+    texte(pdf, MARGE, 30, f"Relevé de marché du {releve}", taille=8, couleur=TEXTE)
     centre(pdf, W - MARGE - 10, 30, f"{numero} / 2", taille=8, gras=True)
 
 
@@ -206,8 +214,8 @@ def _limites(valeurs):
     return bas, max(bas + 1, haut)
 
 
-def graphique(pdf, x, haut, largeur, indice, mesures, limites_x, limites_y):
-    texte(pdf, x, haut, indice, taille=11, police="Helvetica-Bold")
+def graphique(pdf, x, haut, largeur, indice, mesures, limites_x, limites_y, *, titre=None, cible=1.0):
+    texte(pdf, x, haut, titre or indice, taille=11, police="Helvetica-Bold")
     bx, by, l, h = x + 34, haut - 129, largeur - 44, 113
     xmin, xmax = limites_x
     ymin, ymax = limites_y
@@ -218,12 +226,13 @@ def graphique(pdf, x, haut, largeur, indice, mesures, limites_x, limites_y):
     for puissance in range(ymin, ymax + 1):
         yy = by + h * (puissance - ymin) / (ymax - ymin)
         trait(pdf, bx, yy, bx + l, yy)
-        centre(pdf, bx - 17, yy - 2.5, f"{10**puissance:g}", taille=7.5, couleur=TEXTE)
+        centre(pdf, bx - 17, yy - 2.5, fr(10**puissance, max(0, -puissance)),
+               taille=7.5, couleur=TEXTE)
     for puissance in range(xmin, xmax + 1):
         xx = bx + l * (puissance - xmin) / (xmax - xmin)
         trait(pdf, xx, by, xx, by + h)
-        centre(pdf, xx, by - 12, f"{10**puissance:g}", taille=7.5, couleur=TEXTE)
-    yy = by + h * echelle(1, ymin, ymax)
+        centre(pdf, xx, by - 12, fr(10**puissance, max(0, -puissance)), taille=7.5, couleur=TEXTE)
+    yy = by + h * echelle(cible, ymin, ymax)
     pdf.saveState()
     pdf.setDash(3, 2)
     trait(pdf, bx, yy, bx + l, yy, ENCRE)
@@ -321,23 +330,295 @@ def page_performance(pdf, performance, convergence, sensibilite, marche):
     pdf.showPage()
 
 
+def _date_courte(iso):
+    return date.fromisoformat(iso).strftime("%d/%m/%Y")
+
+
+def _source_lien(url, libelle):
+    return f'<link href="{escape(url, quote=True)}">{escape(libelle)}</link>'
+
+
+def _incorporer_polices_spy(pdf):
+    recherches = (
+        (Path("/System/Library/Fonts/Supplemental"), "Arial.ttf", "Arial Bold.ttf",
+         "Arial Italic.ttf", "Times New Roman.ttf"),
+        (Path("/usr/share/fonts/truetype/dejavu"), "DejaVuSans.ttf", "DejaVuSans-Bold.ttf",
+         "DejaVuSans-Oblique.ttf", "DejaVuSerif.ttf"),
+        (Path("C:/Windows/Fonts"), "arial.ttf", "arialbd.ttf", "ariali.ttf", "times.ttf"),
+    )
+    alias = ("PrycingSans", "PrycingSansBold", "PrycingSansItalic", "PrycingSerif")
+    for repertoire, *fichiers in recherches:
+        chemins = [repertoire / fichier for fichier in fichiers]
+        if all(chemin.is_file() for chemin in chemins):
+            for nom, chemin in zip(alias, chemins):
+                pdfmetrics.registerFont(TTFont(nom, str(chemin)))
+            pdfmetrics.registerFontFamily(alias[0], normal=alias[0], bold=alias[1], italic=alias[2])
+            pdf._polices_prycing = dict(zip(
+                ("Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Times-Roman"), alias,
+            ))
+            break
+
+
+def couverture_spy(pdf):
+    rectangle(pdf, 0, H - 11, W, 11, SARCELLE)
+    texte(pdf, MARGE, H - 78, "PROJET PRICING  /  ING 4", taille=11,
+          police="Helvetica-Bold", couleur=SARCELLE)
+    texte(pdf, W - MARGE - 58, H - 78, "2026–2027", taille=11, couleur=TEXTE)
+    trait(pdf, MARGE, H - 98, W - MARGE, H - 98)
+    texte(pdf, MARGE, H - 175, "Valorisation des", taille=44, police="Times-Roman")
+    texte(pdf, MARGE, H - 225, "options asiatiques", taille=44, police="Times-Roman")
+    paragraphe(pdf, "Monte-Carlo et contrôle géométrique sur le SPDR S&amp;P 500 ETF Trust (SPY)",
+               H - 256, taille=17, leading=23)
+    texte(pdf, MARGE, H - 354, "Énoncé 2  ·  Python", taille=13,
+          police="Helvetica-Bold", couleur=SARCELLE)
+    trait(pdf, MARGE, H - 411, W - MARGE, H - 411)
+    texte(pdf, MARGE, H - 443, "Membres du groupe", taille=13, police="Helvetica-Bold")
+    colonne = LARGEUR / 2
+    for i in range(10):
+        x = MARGE + (i // 5) * colonne
+        y = H - 500 - (i % 5) * 34
+        texte(pdf, x, y + 8, str(i + 1), taille=9, couleur=TEXTE)
+        pdf.acroForm.textfield(
+            name=f"Membre {i + 1}", tooltip=f"Prénom et nom du membre {i + 1}",
+            x=x + 24, y=y, width=colonne - 33, height=24, fontSize=11,
+            textColor=ENCRE, fillColor=FOND, borderColor=GRIS, borderWidth=0.5,
+            borderStyle="underlined", forceBorder=True, fieldFlags="", maxlen=60,
+        )
+    pdf.showPage()
+
+
+def _prime_spy(ligne):
+    bas, haut = ligne["ic95_inf_controle"], ligne["ic95_sup_controle"]
+    h = f" ± {fr((float(haut) - float(bas)) / 2, 3)}" if bas and haut else " *"
+    return fr(ligne["controle"], 3) + h
+
+
+def _tableau_prix_spy(pdf, y, prix):
+    paires = {}
+    for ligne in prix:
+        cle = (ligne["echeance"], float(ligne["strike"]))
+        paires.setdefault(cle, {})[ligne["type"]] = ligne
+    lignes = []
+    precedente = None
+    for (echeance, strike), paire in sorted(paires.items()):
+        call, put = paire["call"], paire["put"]
+        lignes.append((
+            _date_courte(echeance) if echeance != precedente else "",
+            fr(100 * float(call["moneyness"])) + " %", fr(strike, 2),
+            _prime_spy(call), fr(call["europeenne"], 3),
+            _prime_spy(put), fr(put["europeenne"], 3),
+        ))
+        precedente = echeance
+    return tableau(
+        pdf, y, ("Échéance", "K/spot", "K", "Call asiatique ± h", "Call euro.",
+                 "Put asiatique ± h", "Put euro."), lignes,
+        (0.15, 0.092, 0.11, 0.199, 0.125, 0.199, 0.125), hauteur=16,
+    )
+
+
+def page_prix_spy(pdf, prix, marche):
+    actif, = marche["actifs"]
+    echeance = actif["echeances"][0]
+    spot, taux, q, sigma = actif["spot"], echeance["taux"], echeance["dividende"], echeance["volatilite"]
+    releve = _date_courte(marche["date_valorisation"])
+    entete(pdf, 1, "Valoriser les options sur SPY",
+           "Calls et puts asiatiques à moyenne arithmétique", releve)
+    y = H - 137
+    rectangle(pdf, MARGE, y - 42, LARGEUR, 42, FOND)
+    for i, (libelle, valeur) in enumerate((
+        ("CLÔTURE SPY", fr(spot, 2) + " USD"), ("VOLATILITÉ", fr(100 * sigma, 2) + " %"),
+        ("TAUX SANS RISQUE", fr(100 * taux, 2) + " %"), ("DIVIDENDE CONTINU", fr(100 * q, 2) + " %"),
+    )):
+        x = MARGE + 10 + i * LARGEUR / 4
+        texte(pdf, x, y - 13, libelle, taille=7.8, police="Helvetica-Bold", couleur=SARCELLE)
+        texte(pdf, x, y - 31, valeur, taille=14)
+    y = paragraphe(
+        pdf, "SPY réplique le S&amp;P 500. Le fonds offre un sous-jacent coté et diversifié, "
+        "avec un cours et des distributions observables. On retient le Treasury américain à un an "
+        "comme proxy du taux continu, et le VIX1Y, construit sur les options du S&amp;P 500, "
+        "comme proxy de volatilité implicite. "
+        f"Le rendement q rapporte les distributions 2025 ({fr(spot * q, 5)} USD/part) au spot. "
+        "Ces entrées sont maintenues constantes pour toutes les échéances.",
+        y - 52, taille=9.45, leading=12.3,
+    )
+    y = section(pdf, y - 19, "01", "Simulation et comparaison avec l’européenne")
+    y = paragraphe(
+        pdf, "Les trajectoires suivent Black–Scholes sous la mesure risque-neutre. Le pricer simule exactement "
+        "les incréments de log S, de moyenne (r − q − σ²/2) × pas et de variance σ² × pas. "
+        "Les observations se font à la dernière séance du mois (ACT/365F), échéance incluse et spot initial exclu. "
+        "On actualise à l’échéance "
+        "le payoff du call ou du put sur la moyenne arithmétique. Les primes européennes utilisent le spot terminal "
+        "et les mêmes paramètres. Les contrats de la grille sont théoriques.",
+        y, taille=9.45, leading=12.3,
+    )
+    y = paragraphe(
+        pdf, f"<b>Primes et strikes en USD par part.</b> Prix asiatiques avec contrôle, ± demi-IC à 95 %. "
+        f"{fr(prix[0]['simulations'])} trajectoires de production et {fr(prix[0]['pilote'])} au pilote.",
+        y - 7, taille=9.1, leading=11.8,
+    )
+    y = _tableau_prix_spy(pdf, y - 5, prix)
+    if any(r["ic95_inf_controle"] == "" for r in prix):
+        y = paragraphe(pdf, "* IC omis lorsque l’échantillon donne trop peu de payoffs informatifs.",
+                       y - 5, taille=8.5, leading=10.5)
+    y = section(pdf, y - 16, "02", "Effet du strike et de la maturité")
+    monnaie = [r for r in prix if math.isclose(float(r["moneyness"]), 1.0)]
+    call_court, *_, call_long = sorted((r for r in monnaie if r["type"] == "call"),
+                                       key=lambda r: r["echeance"])
+    inf = sum(float(r["ecart_points"]) < 0 for r in prix)
+    inversions = [r for r in prix if r["type"] == "put" and float(r["ecart_points"]) > 0]
+    precision = "La plus faible dispersion de la moyenne pèse sur les primes autour de la monnaie."
+    if inversions:
+        cas = max(inversions, key=lambda r: float(r["ecart_points"]))
+        precision = (
+            f"À K = {fr(cas['strike'], 2)} et à l’échéance du {_date_courte(cas['echeance'])}, "
+            f"le put asiatique dépasse le put européen de {fr(cas['ecart_points'], 2)} USD. "
+            "Pour un put très dans la monnaie, l’espérance de la moyenne, plus basse que celle "
+            "du spot terminal (r > q), peut dominer l’effet de la dispersion."
+        )
+    y = paragraphe(
+        pdf, f"L’asiatique est moins chère dans {inf} contrats sur {len(prix)}. Au strike égal au spot, "
+        f"l’écart européen moins asiatique du call passe de {fr(-float(call_court['ecart_points']), 2)} "
+        f"à {fr(-float(call_long['ecart_points']), 2)} USD entre la première et la dernière échéance. "
+        + precision, y, taille=9.45, leading=12.3,
+    )
+    if y < 57:
+        raise ValueError("Le contenu de la page 1 SPY dépasse l’espace disponible.")
+    pdf.showPage()
+
+
+def page_performance_spy(pdf, performance, convergence, sensibilite, marche):
+    actif, = marche["actifs"]
+    spot = actif["spot"]
+    cible = float(performance[0]["cible_pb"])
+    releve = _date_courte(marche["date_valorisation"])
+    entete(pdf, 2, "Mesurer la réduction de variance",
+           "Contrôle géométrique et temps à précision cible", releve)
+    y = section(pdf, H - 138, "03", "Variable de contrôle")
+    y = paragraphe(
+        pdf, "Les normales standard proviennent du générateur congruentiel de L’Ecuyer (64 bits) "
+        "suivi de Box–Muller. À chaque trajectoire correspondent les payoffs actualisés X "
+        "(moyenne arithmétique) et Y (géométrique), de même strike et de même sens. "
+        "Le lot pilote estime β = Cov(X,Y)/Var(Y). Sur le lot de production, on moyenne "
+        "X − β(Y − E[Y]).",
+        y, taille=9.45, leading=12.3,
+    )
+    y = paragraphe(
+        pdf, "Le logarithme de la moyenne géométrique est normal, de moyenne "
+        "log S<sub>0</sub> + (r − q − σ²/2) × moyenne des dates. Pour M fixings, la variance est "
+        "σ² × Σ<sub>j</sub> [(M − j + 1)/M]² × pas<sub>j</sub>, car l’incrément j est compté "
+        "M − j + 1 fois. L’espérance de Y se calcule par la formule du payoff sur lognormale, "
+        "actualisée à T. La demi-largeur de l’IC vaut 1,96 × erreur-type.",
+        y - 7, taille=9.45, leading=12.3,
+    )
+    y = section(pdf, y - 18, "04", "Précision et coût au strike égal au spot")
+    mesure = {r["methode"]: r for r in performance}
+    date_test = _date_courte(performance[0]["echeance"])
+    repetitions = int(performance[0]["repetitions"])
+    protocole = f"Temps médian sur {repetitions} répétitions" if repetitions > 1 else "Un essai par méthode"
+    y = paragraphe(
+        pdf, f"Échéance du {date_test}. {protocole}, pilote compris. "
+        "La demi-largeur retient le maximum sur les calls, puts et répétitions. "
+        f"Le trait pointillé indique la cible de {fr(cible)} pb du spot ({fr(cible * spot / 10_000, 4)} USD).",
+        y, taille=9.2, leading=12,
+    )
+    positives = [r for r in convergence if r["demi_ic95_max_pb"] and float(r["demi_ic95_max_pb"]) > 0]
+    limites_x = _limites([float(r["temps_ms"]) for r in positives])
+    limites_y = _limites([cible] + [float(r["demi_ic95_max_pb"]) for r in positives])
+    haut = y - 18
+    graphique(pdf, MARGE, haut, LARGEUR, "SPY", positives, limites_x, limites_y,
+              titre="Demi-IC à 95 % (pb du spot) · échelles logarithmiques", cible=cible)
+    y = haut - 170
+    for i, (_, (libelle, couleur)) in enumerate(METHODES.items()):
+        x = MARGE + 34 + 83 * i
+        rectangle(pdf, x, y, 11, 6, couleur)
+        texte(pdf, x + 16, y, libelle, taille=8.5, couleur=TEXTE)
+
+    n = max(int(r["simulations"]) for r in convergence)
+    meme_n = {r["methode"]: r for r in convergence if int(r["simulations"]) == n}
+    largeur_naif = float(meme_n["naive"]["demi_ic95_max_pb"])
+    largeur_cv = float(meme_n["controle"]["demi_ic95_max_pb"])
+    y = paragraphe(
+        pdf, f"À {fr(n)} trajectoires, le contrôle divise la demi-largeur maximale par "
+        f"{fr(largeur_naif / largeur_cv, 1)}. Son temps médian est de "
+        f"{fr(meme_n['controle']['temps_ms'], 1)} ms contre {fr(meme_n['naive']['temps_ms'], 1)} ms "
+        "pour le Monte-Carlo naïf à même taille de production.",
+        y - 10, taille=9.2, leading=12,
+    )
+    lignes = [
+        (METHODES[r["methode"]][0], fr(r["simulations"]), fr(r["pilote"]), fr(r["temps_ms"], 1),
+         fr(r["demi_ic95_max_pb"], 2) if r["demi_ic95_max_pb"] else "n.d.",
+         "Oui" if r["cible_atteinte"] == "True" else "Non")
+        for r in performance
+    ]
+    y = tableau(pdf, y - 6, ("Méthode", "Trajectoires", "Pilote", "Temps (ms)", "Demi-IC (pb)", "Cible atteinte"),
+                lignes, (0.16, 0.18, 0.15, 0.17, 0.17, 0.17), hauteur=17)
+    if all(r["cible_atteinte"] == "True" for r in performance):
+        gain = float(mesure["naive"]["temps_ms"]) / float(mesure["controle"]["temps_ms"])
+        conclusion = f" Les deux méthodes atteignent la cible. Sur cette machine, le contrôle réduit le temps d’un facteur {fr(gain, 1)}."
+    else:
+        conclusion = " La cible commune n’est pas atteinte par toutes les méthodes sur cet essai."
+    y = paragraphe(
+        pdf, "Les tailles du tableau sont dimensionnées sur un échantillon séparé, avec une marge de 10 %."
+        + conclusion, y - 6, taille=9.2, leading=12,
+    )
+    if sensibilite:
+        cas = max(sensibilite, key=lambda r: abs(float(r["ecart_historique_implicite_pb"])))
+        decalage = float(cas["ecart_historique_implicite_pb"]) * spot / 10_000
+        verbe = "réduit" if decalage < 0 else "augmente"
+        y = paragraphe(
+            pdf, f"<b>Sensibilité.</b> Pour le {cas['type']} à la monnaie, remplacer la volatilité "
+            f"de référence de {fr(100 * float(cas['volatilite_implicite']), 2)} % par la volatilité "
+            f"historique de {fr(100 * float(cas['volatilite_historique']), 2)} % "
+            f"(250 log-rendements quotidiens de VL, annualisés) {verbe} la prime de {fr(abs(decalage), 2)} USD.",
+            y - 7, taille=9.2, leading=12,
+        )
+    sources = marche.get("sources", {})
+    liens = [_source_lien(sources[cle]["url"], libelle) for cle, libelle in (
+        ("spot_sec", "Clôture SPY (SEC)"),
+        ("distributions", "Distributions (State Street)"),
+        ("volatilite_vix1y", "VIX1Y (Cboe)"),
+        ("taux_treasury", "Treasury 1 an"),
+        ("historique_vl", "VL (State Street)"),
+    ) if cle in sources]
+    if liens:
+        y = paragraphe(pdf, "Données : " + " · ".join(liens), y - 7,
+                       taille=8.15, leading=10.2, couleur=SARCELLE)
+    y = paragraphe(
+        pdf, "Méthodes : A. W. Sanoussi Mani, <i>Pricing Monte Carlo</i>, p. 7–12, 22, 35 et 48–51, 76–77 · "
+        + _source_lien("https://doi.org/10.1090/S0025-5718-99-00996-5", "L’Ecuyer (1999)"),
+        y - 5, taille=8.15, leading=10.2, couleur=SARCELLE,
+    )
+    if y < 57:
+        raise ValueError("Le contenu de la page 2 SPY dépasse l’espace disponible.")
+    pdf.showPage()
+
+
 def main():
     analyseur = argparse.ArgumentParser(description=__doc__)
     analyseur.add_argument("--resultats", type=Path, default=Path("resultats"))
-    analyseur.add_argument("--donnees", type=Path, default=Path("data/market_snapshot.json"))
-    analyseur.add_argument("--sortie", type=Path, default=Path("rapport/sujet_2.pdf"))
+    analyseur.add_argument("--donnees", type=Path, default=Path("data/spy_snapshot.json"))
+    analyseur.add_argument("--sortie", type=Path, default=Path("resultats/sujet_2.pdf"))
     args = analyseur.parse_args()
     prix, performance, convergence, sensibilite = (
         lire_csv(args.resultats, nom) for nom in
         ("prix.csv", "performance.csv", "convergence.csv", "sensibilite.csv")
     )
     marche = json.loads(args.donnees.read_text(encoding="utf-8"))
+    symboles = [actif["symbole"] for actif in marche["actifs"]]
+    if {ligne["indice"] for ligne in prix} != set(symboles):
+        analyseur.error("Les actifs des résultats et de l’instantané de marché doivent coïncider.")
     args.sortie.parent.mkdir(parents=True, exist_ok=True)
     pdf = Canvas(str(args.sortie), pagesize=A4, pageCompression=1, invariant=1)
     pdf.setTitle("Prycing - Sujet 2")
-    pdf.setSubject("Valorisation des options asiatiques sur SPX et RUT")
-    page_prix(pdf, prix, marche)
-    page_performance(pdf, performance, convergence, sensibilite, marche)
+    pdf.setSubject("Valorisation des options asiatiques sur " + ", ".join(symboles))
+    if symboles == ["SPY"]:
+        _incorporer_polices_spy(pdf)
+        couverture_spy(pdf)
+        page_prix_spy(pdf, prix, marche)
+        page_performance_spy(pdf, performance, convergence, sensibilite, marche)
+    else:
+        page_prix(pdf, prix, marche)
+        page_performance(pdf, performance, convergence, sensibilite, marche)
     pdf.save()
     print(f"Rapport écrit dans {args.sortie}")
 

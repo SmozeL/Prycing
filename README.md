@@ -1,34 +1,45 @@
-# Prycing · Options asiatiques sur indices
+# Prycing · Options asiatiques sur SPY
 
-Projet de pricing sur le S&P 500 et le Russell 2000, avec une date de valorisation commune au **30 octobre 2026**. Les contrats asiatiques sont définis pour l'étude et valorisés sous Black-Scholes. Le projet compare le Monte-Carlo naïf et le contrôle par payoff géométrique aux européennes équivalentes.
+Projet Python de valorisation de calls et puts asiatiques à moyenne arithmétique sur **SPY**, le fonds coté State Street SPDR S&P 500 ETF Trust. Le relevé est arrêté au **31 décembre 2025**. Le pricer compare le Monte-Carlo brut, le Monte-Carlo avec contrôle géométrique et la formule de Black-Scholes pour les européennes équivalentes.
 
-## Lancer l’étude
+## Lancer l’étude dans VS Code
+
+Dans le terminal du dossier, créer un environnement local et installer le projet.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e '.[rapport]'
-python run_tp.py
 ```
 
-Dans VS Code, ouvrir le dossier du dépôt, sélectionner l'interpréteur de `.venv`, puis cliquer sur **Run Python File** dans `run_tp.py`. Le script lit le relevé calibré versionné, écrit les CSV et les PNG dans `resultats/`, puis ouvre les deux figures Matplotlib.
-
-À chaque lancement, le script tire une nouvelle graine et l'inscrit dans le terminal et dans `prix.csv`. Les prix Monte-Carlo fluctuent avec les trajectoires simulées. Les prix européens, calculés par formule, sont déterminés par les seules entrées du marché. Pour rejouer les mêmes trajectoires avec les mêmes réglages, passer la graine affichée avec `--graine`. Les chronos restent sensibles à la machine et à sa charge.
+Dans VS Code, choisir l’interpréteur de `.venv` et le profil **Reproduire l’étude SPY**, puis lancer sans débogueur (**Ctrl+F5**) pour mesurer les temps. La configuration fixe la graine à 2026. Le terminal affiche les résultats à la monnaie et la comparaison des temps. Les quatre CSV et les deux graphiques sont enregistrés dans `resultats/`.
 
 ```bash
-python run_tp.py --graine 42
-python run_tp.py --graine 42 --sans-affichage
-```
-
-`--sans-affichage` enregistre les graphiques sans ouvrir de fenêtres. Si le projet est déjà installé, relancer `python -m pip install -e '.[rapport]'` pour ajouter Matplotlib.
-
-```bash
+python run_tp.py --graine 2026 --sans-affichage
 python -m unittest discover -s tests -v
-python -m asian_pricing.rapport --resultats resultats --sortie resultats/sujet_2.pdf
 ```
 
-Le [rapport de deux pages](rapport/sujet_2.pdf) et les [CSV qui ont servi à le produire](rapport/resultats) sont versionnés. Pour reconstruire le rapport publié, passer `--resultats rapport/resultats` au générateur.
+Sans `--graine`, le script tire une nouvelle graine, puis l’inscrit dans le terminal et dans `prix.csv`. Sans `--sans-affichage`, il ouvre les figures en plus de les enregistrer. Les prix et les intervalles sont reproductibles avec les mêmes paramètres et la même graine. Les chronos varient selon la machine et sa charge.
+
+Le [rapport SPY](rapport/spy/sujet_2.pdf) comporte une garde remplissable pour dix membres et deux pages de résultats. Les [mesures utilisées dans le rapport](rapport/spy/resultats) sont versionnées.
+
+```bash
+python -m asian_pricing.rapport --donnees data/spy_snapshot.json \
+  --resultats resultats --sortie resultats/sujet_2.pdf
+```
+
+## Données du 31 décembre 2025
+
+SPY est un ETF coté en USD qui suit le S&P 500. Sa liquidité et la disponibilité de son historique permettent de documenter les entrées. Les 30 primes de l’étude couvrent cinq strikes (80 %, 90 %, 100 %, 110 % et 140 % du spot), trois échéances (environ 6 mois, 1 an et 2 ans) et les deux types d’option.
+
+- **Spot de 681,92 USD par part.** Cours de clôture du 31 décembre 2025. [Relevé déposé auprès de la SEC](https://www.sec.gov/Archives/edgar/data/895421/000183988226009753/ms14199_424b2-06009.htm)
+- **Taux annuel de 3,48 %.** Rendement Treasury à un an utilisé comme approximation d’un taux continu constant pour les trois échéances. [U.S. Treasury](https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value=2025)
+- **Dividende continu de 1,06774 %.** Somme des distributions 2025 de 7,28113 USD par part, divisée par le spot. [Historique des distributions State Street](https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx)
+- **Volatilité de référence de 22,54 %.** Clôture du VIX1Y, fondé sur les options de l’indice S&P 500, utilisée comme approximation constante de la volatilité de SPY. [Historique Cboe](https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX1Y_History.csv)
+- **Sensibilité à 18,61 %.** Écart-type d’échantillon de 250 log-rendements journaliers de la valeur liquidative, du 31 décembre 2024 au 31 décembre 2025, annualisé par √252. [Historique de la valeur liquidative de State Street](https://www.ssga.com/library-content/products/fund-data/etfs/us/navhist-us-en-spy.xlsx)
+
+Les paramètres, dates et sources sont figés dans [l’instantané SPY](data/spy_snapshot.json). Les options asiatiques sont des contrats définis pour l’étude. Leur moyenne arithmétique équipondère les clôtures de la dernière séance de chaque mois, échéance incluse. Les fractions d’année sont en ACT/365F, et le payoff est payé à l’échéance.
 
 ## Utiliser le pricer
 
@@ -36,40 +47,33 @@ Le [rapport de deux pages](rapport/sujet_2.pdf) et les [CSV qui ont servi à le 
 from asian_pricing import pricer_asiatique
 
 prix = pricer_asiatique(
-    spot=100, strike=100, volatilite=0.20, taux=0.03, maturite=1.0,
-    dividende=0.01, frequence=12, simulations=50_000, pilote=5_000,
+    spot=681.92, strike=681.92, volatilite=0.2254, taux=0.0348, maturite=1.0,
+    dividende=7.28113 / 681.92, frequence=12, simulations=50_000, pilote=5_000,
+    graine=2026,
 )
 print(prix["call"]["controle"]["prix"], prix["put"]["controle"]["ic"])
 ```
 
-Les taux et la volatilité sont annuels et saisis en décimal. `frequence` donne le nombre de fixings par an. Pour des séances irrégulières, passer `dates_observation` en années depuis la valorisation. Le pricer expose `naive` et `controle` pour chaque type d'option, ainsi que le prix européen de référence.
+Les taux et la volatilité sont annuels et saisis en décimal. `frequence` donne le nombre de fixings par an. Passer `dates_observation` en fractions d’année pour une grille irrégulière. Pour chaque type d’option, le pricer retourne les estimations `naive` et `controle` ainsi que les références `europeenne` et `geometrique`.
 
-## Données et hypothèses
+Les transitions exactes de Black-Scholes entre fixings utilisent des normales produites par un générateur congruentiel multiplicatif de L’Ecuyer et Box-Muller. Le prix analytique du payoff géométrique centre la variable de contrôle. Un lot pilote estime le coefficient, puis un lot de production disjoint fournit les prix et les intervalles de confiance à 95 %.
 
-- Les indices **SPX** et **RUT** partagent la devise USD et ont des compositions différentes. Les dates du 29 janvier, du 31 mars et du 30 juin 2027 correspondent à des échéances communes de séries à règlement PM.
-- Le relevé `data/market_snapshot.json` contient les données d'entrée calculées, les paramètres, le calendrier et la provenance. Les cotations brutes du fichier d'échange restent des entrées locales.
-- On estime le forward sur des paires call-put comparables et la volatilité implicite près du forward. Le rendement du dividende est déduit du portage implicite. La courbe Treasury estimée par la Fed sert de proxy d'actualisation. Chaque couple indice-échéance utilise une volatilité constante commune aux trois strikes.
-- Les observations mensuelles correspondent aux séances retenues dans le relevé. Le temps est exprimé en années **ACT/365F**. La moyenne donne le même poids à chaque fixing futur. Le paiement intervient à l'échéance.
+- `prix.csv` rassemble les primes, les intervalles de confiance et les diagnostics du contrôle.
+- `performance.csv` compare les temps médians et les demi-largeurs maximales observées à une cible commune de cinq points de base du spot (environ 0,34 USD par part). Le coût du pilote est inclus.
+- `convergence.csv` suit le coût et la précision à nombre de trajectoires égal. `sensibilite.csv` montre l’effet d’une volatilité réalisée de 18,61 %.
+- `comparaison_prix.png` et `precision_temps.png` visualisent ces résultats. Les intervalles mesurent l’erreur d’échantillonnage pour les paramètres et le modèle retenus.
 
-Sources officielles des entrées de marché.
+## Étude SPX et RUT
 
-- [Cotations et prix indicatifs Cboe](https://www.cboe.com/markets/us/options/market-statistics/product-data/proprietary-index-marking-prices/)
-- [Historique SPX](https://cdn.cboe.com/api/global/us_indices/daily_prices/SPX_History.csv) · [Historique RUT](https://cdn.cboe.com/api/global/us_indices/daily_prices/RUT_History.csv)
-- [Courbe nominale de la Fed](https://www.federalreserve.gov/data/nominal-yield-curve.htm)
+L’étude précédente sur les indices reste accessible avec son propre jeu de données et son rapport. Les conventions de calibration sont décrites dans [l’instantané SPX/RUT](data/market_snapshot.json). [Rapport SPX/RUT](rapport/sujet_2.pdf)
 
-Pour recalibrer à partir des quatre CSV d'origine conservés dans un dossier local, utiliser `python -m asian_pricing.donnees --csv-dir CHEMIN --output resultats/market_snapshot.json`. Le fichier de cotations Cboe est remplacé périodiquement. Les empreintes dans l'instantané identifient les fichiers de la session utilisée.
+```bash
+python run_tp.py --donnees data/market_snapshot.json --graine 42 --sans-affichage \
+  --sortie resultats/indices
+python -m asian_pricing.rapport --donnees data/market_snapshot.json \
+  --resultats resultats/indices --sortie resultats/indices/sujet_2.pdf
+```
 
-## Méthode et lecture des sorties
+L’instantané de ces indices peut être recalibré à partir des quatre CSV d’origine, avec `python -m asian_pricing.donnees --csv-dir CHEMIN --output resultats/market_snapshot.json`. Le fichier de cotations Cboe est remplacé périodiquement. Les empreintes de l’instantané identifient les fichiers de la session utilisée.
 
-Le pricer simule les transitions exactes de Black-Scholes entre fixings, avec les normales produites par un générateur congruentiel multiplicatif de L'Ecuyer et Box-Muller. Pour le contrôle, la moyenne des log-cours est gaussienne. Sa variance tient compte des temps de constatation. Le prix géométrique analytique sert à centrer le contrôle. Le lot pilote estime le coefficient de contrôle, et le lot de production fournit les prix et leurs erreurs types.
-
-- `prix.csv` donne les 18 scénarios, avec les calls et les puts, les prix européens, les deux estimateurs asiatiques et leurs IC à 95 %.
-- `performance.csv` compare les temps médians et les demi-largeurs d'IC effectivement obtenues sur les contrats centraux, pour une cible de 1 point de base du spot. Le coût du pilote est inclus. Le champ `cible_atteinte` signale le résultat de la mesure.
-- `convergence.csv` donne le coût et la précision sur plusieurs tailles de simulation.
-- `sensibilite.csv` mesure l'effet du passage de la volatilité implicite à la volatilité historique sur les mêmes contrats centraux. Cette variation de prix et l'incertitude Monte-Carlo sont présentées séparément.
-- `comparaison_prix.png` compare les primes asiatiques contrôlées et européennes par indice, type d'option, strike relatif et échéance.
-- `precision_temps.png` place les deux méthodes sur le même graphique pour chaque indice. Les axes logarithmiques montrent le temps médian et la demi-largeur maximale des IC à 95 %, avec une cible de 1 point de base du spot.
-
-Le chronométrage dépend de la machine. Les intervalles asymptotiques mesurent l'erreur d'échantillonnage sous Black-Scholes avec les paramètres retenus. Les diagnostics sur options européennes décrivent le calibrage des entrées du modèle.
-
-[L'Ecuyer, 1999](https://doi.org/10.1090/S0025-5718-99-00996-5) · [Box et Muller, 1958](https://doi.org/10.1214/aoms/1177706645) · [Kemna et Vorst, 1990](https://doi.org/10.1016/0378-4266(90)90039-5)
+[L’Ecuyer, 1999](https://doi.org/10.1090/S0025-5718-99-00996-5) · [Box et Muller, 1958](https://doi.org/10.1214/aoms/1177706645) · [Kemna et Vorst, 1990](https://doi.org/10.1016/0378-4266(90)90039-5)

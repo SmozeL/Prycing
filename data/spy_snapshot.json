@@ -1,0 +1,214 @@
+{
+  "date_valorisation": "2025-12-31",
+  "horodatage_releve": "2025-12-31T16:00:00-05:00",
+  "devise": "USD",
+  "unite_prix": "USD par part",
+  "strike_ratios": [
+    0.8,
+    0.9,
+    1.0,
+    1.1,
+    1.4
+  ],
+  "cible_precision_pb": 5,
+  "sources": {
+    "spot_ssga": {
+      "url": "https://www.ssga.com/library-content/pdfs/etf/us/us-spy-brochure.pdf#page=4",
+      "reference": "State Street Investment Management, fiche SPY, p. 4, ligne « Current share price », colonne SPY (Bloomberg Finance, L.P., 31 décembre 2025)."
+    },
+    "spot_sec": {
+      "url": "https://www.sec.gov/Archives/edgar/data/895421/000183988226009753/ms14199_424b2-06009.htm",
+      "reference": "Morgan Stanley, prospectus 424B2 sur SEC EDGAR, accession 0001839882-26-009753, p. 19, « Historical Information », colonne « Quarterly Close » au 31 décembre 2025."
+    },
+    "distributions": {
+      "url": "https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx",
+      "reference": "State Street US, onglet dividend, ticker SPY, colonnes EX-DATE en 2025 et DIVIDEND ($). Les montants ci-dessous sont arrondis à cinq décimales. Le total brut de 7,281127 USD est arrondi à 7,28113 USD.",
+      "observations": [
+        {
+          "date_detachement": "2025-03-21",
+          "montant_brut_usd": 1.69553
+        },
+        {
+          "date_detachement": "2025-06-20",
+          "montant_brut_usd": 1.76112
+        },
+        {
+          "date_detachement": "2025-09-19",
+          "montant_brut_usd": 1.83111
+        },
+        {
+          "date_detachement": "2025-12-19",
+          "montant_brut_usd": 1.99337
+        }
+      ],
+      "total_usd": 7.28113
+    },
+    "volatilite_vix1y": {
+      "url": "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX1Y_History.csv",
+      "reference": "Cboe, série quotidienne VIX1Y, champ CLOSE au 31 décembre 2025 (indice coté en points de volatilité).",
+      "valeur_pct": 22.54
+    },
+    "taux_treasury": {
+      "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value=2025",
+      "reference": "U.S. Department of the Treasury, Daily Treasury Par Yield Curve Rates, colonne 1 Yr au 31 décembre 2025.",
+      "valeur_pct": 3.48
+    },
+    "historique_vl": {
+      "url": "https://www.ssga.com/library-content/products/fund-data/etfs/us/navhist-us-en-spy.xlsx",
+      "reference": "State Street, onglet navhist, colonnes Date et NAV. 251 valeurs liquidatives brutes en USD du 31 décembre 2024 au 31 décembre 2025 inclus."
+    }
+  },
+  "documentation": {
+    "produit": "https://www.ssga.com/us/en/intermediary/etfs/state-street-spdr-sp-500-etf-trust-spy",
+    "distributions": "https://www.ssga.com/us/en/intermediary/resources/documents/etf-dividend-distributions",
+    "distributions_australie": "https://www.ssga.com/au/en_gb/institutional/etfs/state-street-spdr-sp-500-etf-spy#distributions",
+    "calendrier": "https://www.nyse.com/trade/hours-calendars",
+    "volatilite": "https://www.cboe.com/tradable-products/vix/term-structure"
+  },
+  "conventions": {
+    "base_temps": "ACT/365F",
+    "spot": "Cours de clôture coté de SPY en USD par part sur NYSE Arca.",
+    "echeances": "Contrats théoriques de l'étude, à environ 6, 12 et 24 mois.",
+    "fixings": "Clôture de la dernière séance du mois selon le calendrier NYSE Arca, échéance incluse. Moyenne équipondérée de 6, 12 ou 24 clôtures futures.",
+    "taux": "Rendement Treasury au pair à 1 an utilisé directement comme approximation de taux continu constant aux trois échéances.",
+    "dividende": "Taux continu approximé par le total brut des distributions détachées en 2025 (7,28113 USD par part) divisé par le spot initial.",
+    "volatilite": "Clôture du VIX1Y (22,54 %) comme proxy constant. L'indice repose sur des options SPX à horizon un an.",
+    "forward": "Forward théorique égal à spot × exp((taux − dividende) × maturité).",
+    "volatilite_historique": "Écart-type empirique (n − 1) de 250 log-rendements quotidiens de la valeur liquidative brute, annualisé par √252. Utilisé en sensibilité.",
+    "rendements_historiques": 250,
+    "seances_annualisation": 252
+  },
+  "actifs": [
+    {
+      "symbole": "SPY",
+      "racine": "SPY",
+      "nom": "State Street SPDR S&P 500 ETF Trust",
+      "spot": 681.92,
+      "volatilite_historique": 0.18613099274,
+      "historique_debut": "2024-12-31",
+      "historique_fin": "2025-12-31",
+      "echeances": [
+        {
+          "date": "2026-06-30",
+          "maturite": 0.4958904109589041,
+          "taux": 0.0348,
+          "dividende": 0.010677396175504459,
+          "volatilite": 0.2254,
+          "forward": 690.1262258217978,
+          "fixings": [
+            "2026-01-30",
+            "2026-02-27",
+            "2026-03-31",
+            "2026-04-30",
+            "2026-05-29",
+            "2026-06-30"
+          ],
+          "dates_observation": [
+            0.0821917808219178,
+            0.1589041095890411,
+            0.2465753424657534,
+            0.3287671232876712,
+            0.40821917808219177,
+            0.4958904109589041
+          ]
+        },
+        {
+          "date": "2026-12-31",
+          "maturite": 1.0,
+          "taux": 0.0348,
+          "dividende": 0.010677396175504459,
+          "volatilite": 0.2254,
+          "forward": 698.5696956422053,
+          "fixings": [
+            "2026-01-30",
+            "2026-02-27",
+            "2026-03-31",
+            "2026-04-30",
+            "2026-05-29",
+            "2026-06-30",
+            "2026-07-31",
+            "2026-08-31",
+            "2026-09-30",
+            "2026-10-30",
+            "2026-11-30",
+            "2026-12-31"
+          ],
+          "dates_observation": [
+            0.0821917808219178,
+            0.1589041095890411,
+            0.2465753424657534,
+            0.3287671232876712,
+            0.40821917808219177,
+            0.4958904109589041,
+            0.5808219178082191,
+            0.6657534246575343,
+            0.7479452054794521,
+            0.8301369863013699,
+            0.915068493150685,
+            1.0
+          ]
+        },
+        {
+          "date": "2027-12-31",
+          "maturite": 2.0,
+          "taux": 0.0348,
+          "dividende": 0.010677396175504459,
+          "volatilite": 0.2254,
+          "forward": 715.6259087131091,
+          "fixings": [
+            "2026-01-30",
+            "2026-02-27",
+            "2026-03-31",
+            "2026-04-30",
+            "2026-05-29",
+            "2026-06-30",
+            "2026-07-31",
+            "2026-08-31",
+            "2026-09-30",
+            "2026-10-30",
+            "2026-11-30",
+            "2026-12-31",
+            "2027-01-29",
+            "2027-02-26",
+            "2027-03-31",
+            "2027-04-30",
+            "2027-05-28",
+            "2027-06-30",
+            "2027-07-30",
+            "2027-08-31",
+            "2027-09-30",
+            "2027-10-29",
+            "2027-11-30",
+            "2027-12-31"
+          ],
+          "dates_observation": [
+            0.0821917808219178,
+            0.1589041095890411,
+            0.2465753424657534,
+            0.3287671232876712,
+            0.40821917808219177,
+            0.4958904109589041,
+            0.5808219178082191,
+            0.6657534246575343,
+            0.7479452054794521,
+            0.8301369863013699,
+            0.915068493150685,
+            1.0,
+            1.0794520547945206,
+            1.1561643835616437,
+            1.2465753424657535,
+            1.3287671232876712,
+            1.4054794520547946,
+            1.4958904109589042,
+            1.5780821917808219,
+            1.6657534246575343,
+            1.747945205479452,
+            1.8273972602739725,
+            1.915068493150685,
+            2.0
+          ]
+        }
+      ]
+    }
+  ]
+}

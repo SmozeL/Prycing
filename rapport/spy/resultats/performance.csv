@@ -1,0 +1,3 @@
+indice,echeance,methode,simulations,pilote,repetitions,temps_ms,demi_ic95_call_pb,demi_ic95_put_pb,demi_ic95_max_pb,cible_pb,dimensionnement,cible_atteinte,plafond_atteint
+SPY,2026-12-31,naive,137658,0,5,337.30637499999716,4.828253350658116,3.5719368468059174,4.828253350658116,5.0,30000,True,False
+SPY,2026-12-31,controle,512,5000,5,13.134499999999605,2.663692846699212,1.8532190964046247,2.663692846699212,5.0,30000,True,False

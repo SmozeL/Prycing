@@ -139,7 +139,7 @@ def _sensibilite(calculer, actif, echeance, implicite, simulations, decalage):
     return lignes
 
 
-def _tailles_cibles(echantillon, spot, dimensionnement, plafond):
+def _tailles_cibles(echantillon, spot, dimensionnement, plafond, cible_pb):
     """Dimensionne la production avant chronométrage avec une marge de 10 %."""
     tailles = {}
     for methode in _METHODES:
@@ -147,7 +147,7 @@ def _tailles_cibles(echantillon, spot, dimensionnement, plafond):
         if any(largeur is None for largeur in demi_largeurs):
             tailles[methode] = (plafond, True)
             continue
-        facteur = max(demi_largeurs) / _CIBLE_PB
+        facteur = max(demi_largeurs) / cible_pb
         n_demande = max(
             _MIN_PRODUCTION,
             math.ceil(_MARGE_DIMENSIONNEMENT * dimensionnement * facteur**2),
@@ -201,12 +201,21 @@ def analyser_marche(
     if min(simulations, pilote, dimensionnement, plafond) < 2 or repetitions < 1:
         raise ValueError("Il faut au moins deux trajectoires et une répétition.")
 
+    strike_ratios = tuple(marche.get("strike_ratios", _STRIKES_RELATIFS))
+    if (len(strike_ratios) != len(set(strike_ratios)) or 1.0 not in strike_ratios
+            or any(not math.isfinite(ratio) or ratio <= 0 for ratio in strike_ratios)):
+        raise ValueError("Les ratios strike/spot doivent être positifs, distincts et inclure 1.")
+    position_atm = strike_ratios.index(1.0)
+    cible_pb = float(marche.get("cible_precision_pb", _CIBLE_PB))
+    if not math.isfinite(cible_pb) or cible_pb <= 0:
+        raise ValueError("La cible de précision doit être positive et finie.")
+
     calculer = _Simulations(graine, pilote)
     resultats = {nom: [] for nom in ("prix", "performance", "convergence", "sensibilite")}
     for actif in marche["actifs"]:
         echeances = sorted(actif["echeances"], key=lambda e: e["date"])
         centrale = echeances[len(echeances) // 2]
-        strikes = [actif["spot"] * ratio for ratio in _STRIKES_RELATIFS]
+        strikes = [actif["spot"] * ratio for ratio in strike_ratios]
         for echeance in echeances:
             decalage = calculer.prochain
             estimations = calculer(actif, echeance, strikes, simulations, "les_deux")
@@ -215,13 +224,14 @@ def analyser_marche(
             )
             if echeance is centrale:
                 resultats["sensibilite"].extend(
-                    _sensibilite(calculer, actif, echeance, estimations[1], simulations, decalage)
+                    _sensibilite(calculer, actif, echeance, estimations[position_atm],
+                                 simulations, decalage)
                 )
 
         # La grille a déjà échauffé le pricer. Le dimensionnement ne fait pas
         # partie du chronométrage. Le pilote de chaque production contrôlée si.
         echantillon, = calculer(actif, centrale, [actif["spot"]], dimensionnement, "les_deux")
-        tailles = _tailles_cibles(echantillon, actif["spot"], dimensionnement, plafond)
+        tailles = _tailles_cibles(echantillon, actif["spot"], dimensionnement, plafond, cible_pb)
         mesures = _chronometrer(
             calculer, actif, centrale, {m: v[0] for m, v in tailles.items()}, repetitions,
         )
@@ -229,9 +239,9 @@ def analyser_marche(
             demi_largeur = mesure["demi_ic95_max_pb"]
             resultats["performance"].append({
                 **mesure,
-                "cible_pb": _CIBLE_PB,
+                "cible_pb": cible_pb,
                 "dimensionnement": dimensionnement,
-                "cible_atteinte": demi_largeur is not None and demi_largeur <= _CIBLE_PB,
+                "cible_atteinte": demi_largeur is not None and demi_largeur <= cible_pb,
                 "plafond_atteint": tailles[mesure["methode"]][1],
             })
 
