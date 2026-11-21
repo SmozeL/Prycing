@@ -40,7 +40,7 @@ La moyenne brute estime l’espérance de $X$. Le lot pilote estime $\widehat\be
 - **`prix.csv`** contient les **18 comparaisons** (trois strikes × trois maturités × deux types d’option), avec les primes brutes, contrôlées et européennes et les demi-largeurs d’IC disponibles. On reconstitue chaque IC en retranchant et en ajoutant sa demi-largeur au prix estimé.
 - **`performance.csv`** contient **quatre lignes** pour le strike à la monnaie et l’échéance à un an. Le régime `trajectoires_egales` compare les deux méthodes à production égale. Le régime `precision_cible` vise une demi-largeur d’IC à 95 % de **5 points de base du spot**, soit **0,1565 USD par action**. Le fichier donne le temps médian et les demi-largeurs maximales par type d’option sur les répétitions. Le chronométrage de la méthode contrôlée inclut son lot pilote. Les temps dépendent de la machine et de sa charge.
 
-## Appel Python et tests
+## Appel Python
 
 Le pricer calcule les deux types d’option. Les taux et la volatilité s’expriment en décimal, la maturité en années. Une liste `dates_observation` en fractions d’année permet de fournir le calendrier à la place de la fréquence.
 
@@ -53,8 +53,4 @@ resultat = pricer_asiatique(
     frequence=12, simulations=50_000, pilote=5_000, graine=2026,
 )
 print(resultat["call"]["controle"]["prix"])
-```
-
-```bash
-python -m unittest discover -s tests -v
 ```

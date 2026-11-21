@@ -1,6 +1,4 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
-  "python.useEnvironmentsExtension": false,
-  "python.testing.unittestEnabled": true,
-  "python.testing.unittestArgs": ["-s", "tests"]
+  "python.useEnvironmentsExtension": false
 }
