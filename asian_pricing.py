@@ -354,6 +354,12 @@ def pricer_grille(
     Le mode « les_deux » évalue les deux estimateurs sur le même lot de
     production, disjoint du pilote.
 
+    Le réglage de référence utilise 50 000 trajectoires de production et
+    5 000 trajectoires pilotes. Deux trajectoires pilotes sont le minimum
+    accepté. Avec un pilote très petit, β peut être instable et la variance
+    peut augmenter. Si les payoffs pilotes sont constants, β vaut zéro et
+    la correction est nulle.
+
     Le résultat décrit chaque strike dans `strikes`, avec ses entrées `call`
     et `put`. Celles-ci donnent les références analytiques européenne et
     géométrique, puis les estimations demandées et leurs diagnostics.
@@ -477,7 +483,10 @@ def pricer_asiatique(
     La fréquence annuelle définit le nombre de fixings d'une grille uniforme
     entre la valorisation et l'échéance. Une grille `dates_observation`
     explicite prend la priorité pour reproduire un calendrier de séances.
-    Les réglages de simulation sont transmis à `pricer_grille`.
+
+    `reglages` accepte `simulations` (50 000), `pilote` (5 000), `graine`
+    (42), `decalage` (0), `methode` (« les_deux ») et `niveau_confiance`
+    (0,95). Ces paramètres sont transmis à `pricer_grille`.
     """
     dates = dates_regulieres(maturite, frequence) if dates_observation is None else dates_observation
     resultat = pricer_grille(

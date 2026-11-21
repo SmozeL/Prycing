@@ -33,19 +33,28 @@ Les contrats théoriques combinent trois strikes (90 %, 100 % et 110 % du spot) 
 1. **Valorisation.** Le générateur congruentiel de L’Ecuyer et Box–Muller fournissent les normales. On simule la transition exacte de Black–Scholes entre deux fixings et on moyenne les payoffs actualisés du call et du put sur la moyenne arithmétique. [L’Ecuyer](https://doi.org/10.1090/S0025-5718-99-00996-5) · [Box et Muller](https://doi.org/10.1214/aoms/1177706645)
 2. **Comparaison.** `prix.csv` contient 18 comparaisons entre primes asiatiques brutes et contrôlées et primes européennes de Black–Scholes, ainsi que les demi-largeurs d’IC à 95 % des estimateurs Monte-Carlo.
 3. **Contrôle géométrique.** On corrige le payoff arithmétique actualisé $X$ par le payoff géométrique actualisé $Y$, d’espérance analytique. Un lot pilote estime $\beta=\mathrm{Cov}(X,Y)/\mathrm{Var}(Y)$, puis un lot disjoint estime la moyenne de $X-\beta(Y-\mathbb{E}[Y])$.
-4. **Précision et temps.** `performance.csv` compare les demi-largeurs d’IC à **50 000 trajectoires** et les temps médians pour atteindre une demi-largeur cible de **0,1565 USD** (5 points de base du spot), à la monnaie à un an. Le dimensionnement ajoute 10 % de marge avec un minimum de 2 000 trajectoires. Le temps du contrôle inclut le pilote. Le gain de temps se lit lorsque les deux méthodes atteignent la cible.
+4. **Précision et temps.** À la monnaie et à un an, `performance.csv` compare les demi-largeurs d’IC à **50 000 trajectoires** et les temps pour une demi-largeur cible de **0,1565 USD** (5 points de base du spot). Le dimensionnement utilise **30 000 trajectoires de production** et son propre pilote avant le chronométrage. On extrapole en $1/\sqrt{N}$ avec 10 % de marge et un minimum de 2 000 trajectoires. Chaque régime comporte **cinq répétitions** par méthode, en alternant leur ordre. Le CSV indique le temps médian du pricer, pilote inclus pour le contrôle, et la plus grande demi-largeur d’IC observée parmi les calls, les puts et les répétitions. Le gain de temps est calculé si les deux méthodes respectent la cible sur tous ces essais.
+
+Avec la graine 2026, à un an et au strike de 313 USD, le call asiatique contrôlé vaut **26,65 USD** et le call européen **44,47 USD**. Le put asiatique contrôlé vaut **21,36 USD** et le put européen **34,59 USD**. À ces paramètres, la moyenne mensuelle atténue l’effet des mouvements du spot sur les deux payoffs.
 
 ## Appeler le pricer
 
-La maturité est en années. Les taux et la volatilité sont en décimal. Fournir `dates_observation` en fractions d’année pour utiliser un calendrier explicite.
+La maturité est en années et les taux et la volatilité sont en décimal. Choisir une `frequence` annuelle ou fournir `dates_observation` en fractions d’année. Le réglage de référence utilise `simulations=50_000`, `pilote=5_000` et `niveau_confiance=0.95`. Sélectionner `methode="naive"`, `"controle"` ou `"les_deux"` et fixer `graine` pour rejouer un calcul. Un lot pilote très petit peut rendre le coefficient instable et augmenter la variance. Si le payoff du contrôle est constant dans le pilote, la correction est nulle.
 
 ```python
 from asian_pricing import pricer_asiatique
 
-resultat = pricer_asiatique(
+parametres = dict(
     spot=313, strike=313, volatilite=0.322302066636,
     taux=0.0348, maturite=1, dividende=0.83 / 313,
-    frequence=12, graine=2026,
+    graine=2026,
 )
+resultat = pricer_asiatique(**parametres, frequence=12)
 print(resultat["call"]["controle"]["prix"])
+
+# Avec un seul fixing à l’échéance, les deux moyennes valent le spot terminal.
+resultat = pricer_asiatique(**parametres, dates_observation=[1], methode="controle")
+for type_option in ("call", "put"):
+    option = resultat[type_option]
+    assert abs(option["controle"]["prix"] - option["europeenne"]) < 1e-10
 ```

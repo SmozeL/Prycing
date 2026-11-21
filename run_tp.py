@@ -36,6 +36,7 @@ _FIXINGS_REFERENCE = 12
 _STRIKES_RELATIFS = (0.90, 1.00, 1.10)
 _PRODUCTION = 50_000
 _PILOTE = 5_000
+_DIMENSIONNEMENT = 30_000
 _REPETITIONS = 5
 _CIBLE_USD = _SPOT * 5 / 10_000
 _SORTIE = Path(__file__).resolve().parent / "resultats"
@@ -164,9 +165,8 @@ def _analyser(graine):
     prix = _grille_prix(calculer)
 
     # Un lot distinct sert à dimensionner les essais avant de les chronométrer.
-    taille_echantillon = 30_000
-    echantillon, = calculer(_FIXINGS_REFERENCE, [_SPOT], taille_echantillon, "les_deux")
-    tailles = _tailles_cibles(echantillon, taille_echantillon, _CIBLE_USD)
+    echantillon, = calculer(_FIXINGS_REFERENCE, [_SPOT], _DIMENSIONNEMENT, "les_deux")
+    tailles = _tailles_cibles(echantillon, _DIMENSIONNEMENT, _CIBLE_USD)
     performance = _chronometrer(
         calculer, dict.fromkeys(_METHODES, _PRODUCTION), "trajectoires_egales",
     )
@@ -201,13 +201,19 @@ def _afficher_resultats(resultats):
               f"{ligne['prix_asiatique_controle']:>12.4f}")
 
     print("\nGain de précision et de temps à la monnaie, à un an")
+    print(f"{_REPETITIONS} répétitions par méthode et par régime, avec ordre alterné.")
+    print("Temps médian du pricer, pilote inclus pour le contrôle.")
+    print(f"Dimensionnement sur {_DIMENSIONNEMENT} trajectoires de production et leur pilote, hors chrono.")
+    print("Le demi-IC maximal porte sur les calls, les puts et toutes les répétitions.")
     for ligne in resultats["performance"]:
         regime = "N égal" if ligne["regime"] == "trajectoires_egales" else "Cible"
         methode = "Brut" if ligne["methode"] == "naive" else "Contrôle"
         demi_ic = ligne["demi_ic_max_usd"]
         largeur = "IC indisponible" if demi_ic is None else f"demi-IC max {demi_ic:.4f} USD"
+        atteinte = ligne["cible_atteinte"]
+        statut = "" if atteinte is None else (" · cible atteinte" if atteinte else " · cible manquée")
         print(f"{regime:7} · {methode:8} · {ligne['trajectoires']:>6} trajectoires "
-              f"· {largeur} · {ligne['temps_median_ms']:.1f} ms")
+              f"· {largeur} · {ligne['temps_median_ms']:.1f} ms{statut}")
 
     mesures = {(ligne["regime"], ligne["methode"]): ligne for ligne in resultats["performance"]}
     ic_brut = mesures["trajectoires_egales", "naive"]["demi_ic_max_usd"]
