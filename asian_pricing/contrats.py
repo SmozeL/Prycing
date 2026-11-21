@@ -6,7 +6,13 @@ import numpy as np
 
 
 def dates_regulieres(maturite: float, frequence: float) -> np.ndarray:
-    """Construit les observations iT/m, avec m = ceil(fréquence × T)."""
+    """Construit une grille uniforme à partir d'une fréquence annuelle.
+
+    Pour m = ceil(fréquence × T), les fixings ont lieu aux dates iT/m pour
+    i = 1, …, m. Le nombre de dates vise la fréquence demandée, puis les
+    observations sont espacées de T/m pour terminer exactement à l'échéance.
+    Le spot initial ne fait pas partie de la moyenne.
+    """
     cible = maturite * frequence
     if not math.isfinite(cible) or cible <= 0:
         raise ValueError("La maturité et la fréquence doivent définir un nombre d'observations positif.")
@@ -18,7 +24,12 @@ def dates_regulieres(maturite: float, frequence: float) -> np.ndarray:
 
 
 def valider_contrat(spot, strikes, maturite, taux, dividende, volatilite, dates_observation):
-    """Vérifie les paramètres du modèle et le calendrier exprimé en années."""
+    """Vérifie le contrat et renvoie les vecteurs NumPy de strikes et de dates.
+
+    Une grille explicite permet des pas irréguliers dans ]0, T]. Le dernier
+    fixing peut précéder T, qui reste la date de paiement des deux types
+    d'option. Les taux et le rendement du dividende sont continus.
+    """
     if not all(math.isfinite(x) for x in (spot, maturite, taux, dividende, volatilite)):
         raise ValueError("Les paramètres financiers doivent être finis.")
     if spot <= 0 or maturite <= 0 or volatilite < 0:

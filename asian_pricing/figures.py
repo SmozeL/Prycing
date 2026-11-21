@@ -72,7 +72,7 @@ def _precision_temps(convergence, performance):
     indices = list(dict.fromkeys(ligne["indice"] for ligne in convergence))
     cible = performance[0]["cible_pb"]
     figure, (axes,) = plt.subplots(
-        1, len(indices), figsize=(5.5 * len(indices), 5.1),
+        1, len(indices), figsize=(max(8.5, 5.5 * len(indices)), 5.1),
         layout="constrained", sharex=True, sharey=True, squeeze=False,
     )
     figure.suptitle(

@@ -14,7 +14,7 @@ _METHODES = ("naive", "controle")
 _STRIKES_RELATIFS = (0.90, 1.00, 1.10)
 _CIBLE_PB = 1.0
 _MARGE_DIMENSIONNEMENT = 1.10
-_MIN_PRODUCTION = 512
+_MIN_PRODUCTION = 1_024
 
 
 class _Simulations:
@@ -111,16 +111,20 @@ def _prix(marche, actif, echeance, estimations, simulations, pilote, graine, dec
     return lignes
 
 
-def _sensibilite(calculer, actif, echeance, implicite, simulations, decalage):
+def _sensibilite(calculer, actif, echeance, reference, simulations, decalage):
+    """Change seulement σ et apparie les trajectoires aux prix de référence."""
     spot = actif["spot"]
-    historique, = calculer(
+    sigma_alternative = actif.get("volatilite_alternative")
+    if sigma_alternative is None:
+        sigma_alternative = actif["volatilite_historique"]
+    alternative, = calculer(
         actif, echeance, [spot], simulations, "les_deux",
-        volatilite=actif["volatilite_historique"], decalage_partage=decalage,
+        volatilite=sigma_alternative, decalage_partage=decalage,
     )
     lignes = []
     for type_option in _TYPES:
-        prix_imp = implicite[type_option]["controle"]
-        prix_hist = historique[type_option]["controle"]
+        prix_reference = reference[type_option]["controle"]
+        prix_alternatif = alternative[type_option]["controle"]
         lignes.append({
             "indice": actif["symbole"],
             "echeance": echeance["date"],
@@ -128,19 +132,25 @@ def _sensibilite(calculer, actif, echeance, implicite, simulations, decalage):
             "spot": spot,
             "strike": spot,
             "decalage": decalage,
-            "volatilite_implicite": echeance["volatilite"],
-            "volatilite_historique": actif["volatilite_historique"],
-            "prix_implicite": prix_imp["prix"],
-            "prix_historique": prix_hist["prix"],
-            "demi_ic95_implicite_pb": _demi_ic_pb(prix_imp, spot),
-            "demi_ic95_historique_pb": _demi_ic_pb(prix_hist, spot),
-            "ecart_historique_implicite_pb": 10_000 * (prix_hist["prix"] - prix_imp["prix"]) / spot,
+            "volatilite_reference": echeance["volatilite"],
+            "volatilite_alternative": sigma_alternative,
+            "prix_reference": prix_reference["prix"],
+            "prix_alternatif": prix_alternatif["prix"],
+            "demi_ic95_reference_pb": _demi_ic_pb(prix_reference, spot),
+            "demi_ic95_alternatif_pb": _demi_ic_pb(prix_alternatif, spot),
+            "ecart_alternatif_reference_pb": (
+                10_000 * (prix_alternatif["prix"] - prix_reference["prix"]) / spot
+            ),
         })
     return lignes
 
 
 def _tailles_cibles(echantillon, spot, dimensionnement, plafond, cible_pb):
-    """Dimensionne la production avant chronométrage avec une marge de 10 %."""
+    """Estime N par la loi en 1/√N, avec une marge de 10 % et un plancher.
+
+    Pour chaque méthode, une même taille doit satisfaire les deux payoffs.
+    On prend donc la plus grande demi-largeur de l’échantillon de dimensionnement.
+    """
     tailles = {}
     for methode in _METHODES:
         demi_largeurs = [_demi_ic_pb(echantillon[t][methode], spot) for t in _TYPES]

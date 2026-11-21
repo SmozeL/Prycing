@@ -38,8 +38,8 @@ def afficher(resultats, unite_prix="points d'indice"):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--donnees", type=Path, default=_REPERTOIRE / "data" / "spy_snapshot.json",
-                        help="Instantané de marché JSON. L'étude utilise SPY par défaut.")
+    parser.add_argument("--donnees", type=Path,
+                        help="Instantané de marché JSON. L'étude utilise GOOGL par défaut.")
     parser.add_argument("--sortie", type=Path, default=_REPERTOIRE / "resultats")
     parser.add_argument("--simulations", type=int, default=50_000)
     parser.add_argument("--pilote", type=int, default=5_000)

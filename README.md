@@ -1,79 +1,88 @@
-# Prycing · Options asiatiques sur SPY
+# Options asiatiques sur Alphabet (GOOGL)
 
-Projet Python de valorisation de calls et puts asiatiques à moyenne arithmétique sur **SPY**, le fonds coté State Street SPDR S&P 500 ETF Trust. Le relevé est arrêté au **31 décembre 2025**. Le pricer compare le Monte-Carlo brut, le Monte-Carlo avec contrôle géométrique et la formule de Black-Scholes pour les européennes équivalentes.
+**Projet Pricing ING 4 · Énoncé 2**
 
-## Lancer l’étude dans VS Code
+Le projet valorise des calls et puts asiatiques à moyenne arithmétique sous Black–Scholes. Il compare le Monte-Carlo brut, le Monte-Carlo avec contrôle géométrique et le prix analytique de l’option européenne correspondante.
 
-Dans le terminal du dossier, créer un environnement local et installer le projet.
+## Exécution
+
+Avec Python 3.9 ou supérieur, depuis la racine du dépôt.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e '.[rapport]'
+python -m pip install -e .
+python run_tp.py --graine 2026 --sans-affichage --sortie resultats/googl
 ```
 
-Dans VS Code, choisir l’interpréteur de `.venv` et le profil **Reproduire l’étude SPY**, puis lancer sans débogueur (**Ctrl+F5**) pour mesurer les temps. La configuration fixe la graine à 2026. Le terminal affiche les résultats à la monnaie et la comparaison des temps. Les quatre CSV et les deux graphiques sont enregistrés dans `resultats/`.
+Dans VS Code, sélectionner l’interpréteur de `.venv`, puis lancer **Reproduire l’étude GOOGL** avec **Ctrl+F5** pour mesurer les temps sans débogueur. Le profil utilise les mêmes paramètres que la commande, une graine de 2026 et le dossier `resultats/googl/`. Un lancement sans `--graine` tire une nouvelle graine et l’affiche dans le terminal. Les prix sont reproductibles à graine et réglages identiques. Les chronos dépendent de la machine et de sa charge.
 
 ```bash
-python run_tp.py --graine 2026 --sans-affichage
 python -m unittest discover -s tests -v
 ```
 
-Sans `--graine`, le script tire une nouvelle graine, puis l’inscrit dans le terminal et dans `prix.csv`. Sans `--sans-affichage`, il ouvre les figures en plus de les enregistrer. Les prix et les intervalles sont reproductibles avec les mêmes paramètres et la même graine. Les chronos varient selon la machine et sa charge.
+## Données et conventions
 
-Le [rapport SPY](rapport/spy/sujet_2.pdf) comporte une garde remplissable pour dix membres et deux pages de résultats. Les [mesures utilisées dans le rapport](rapport/spy/resultats) sont versionnées.
+L’action **Alphabet de classe A**, cotée au Nasdaq sous le symbole **GOOGL**, fournit un sous-jacent liquide avec des clôtures et des dividendes documentés. La date de valorisation est le **31 décembre 2025**. L’[instantané de marché](data/googl_snapshot.json) fige les entrées, les échéances et les fixings. L’exécution est indépendante du réseau.
 
-```bash
-python -m asian_pricing.rapport --donnees data/spy_snapshot.json \
-  --resultats resultats --sortie resultats/sujet_2.pdf
-```
+- **Spot de 313,00 USD.** Cours de clôture du 31 décembre 2025. [Relevé déposé auprès de la SEC](https://www.sec.gov/Archives/edgar/data/200245/000191870426000167/form424b2.htm)
+- **Taux de 3,48 %.** Rendement du Treasury à un an utilisé comme approximation d’un taux continu constant. [U.S. Treasury](https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value=2025)
+- **Dividende continu approximé à 0,26518 %.** Total de 0,83 USD déclaré par action en 2025, divisé par le spot. [Alphabet, formulaire 10-K 2025](https://www.sec.gov/Archives/edgar/data/1652044/000165204426000018/goog-20251231.htm)
+- **Volatilité historique annualisée de 32,23 %.** Écart-type d’échantillon de 250 log-rendements journaliers, multiplié par √252. La fenêtre s’étend de la clôture du 31 décembre 2024 à celle du 31 décembre 2025. L’analyse de sensibilité utilise les 63 derniers rendements de cette série, soit 29,77 %. [Série historique de Nasdaq](https://api.nasdaq.com/api/quote/GOOGL/chart?assetclass=stocks&fromdate=2024-12-31&todate=2025-12-31)
 
-## Données du 31 décembre 2025
+La grille combine cinq strikes à 80 %, 90 %, 100 %, 110 % et 140 % du spot et trois échéances à environ 6, 12 et 24 mois. Les contrats asiatiques sont définis pour l’étude. Les dates sont en ACT/365F. La moyenne équipondère les clôtures de la dernière séance de chaque mois, échéance incluse. Le paiement intervient à l’échéance et le spot initial est exclu de la moyenne. Les prix sont en USD par action.
 
-SPY est un ETF coté en USD qui suit le S&P 500. Sa liquidité et la disponibilité de son historique permettent de documenter les entrées. Les 30 primes de l’étude couvrent cinq strikes (80 %, 90 %, 100 %, 110 % et 140 % du spot), trois échéances (environ 6 mois, 1 an et 2 ans) et les deux types d’option.
+## Méthode de valorisation
 
-- **Spot de 681,92 USD par part.** Cours de clôture du 31 décembre 2025. [Relevé déposé auprès de la SEC](https://www.sec.gov/Archives/edgar/data/895421/000183988226009753/ms14199_424b2-06009.htm)
-- **Taux annuel de 3,48 %.** Rendement Treasury à un an utilisé comme approximation d’un taux continu constant pour les trois échéances. [U.S. Treasury](https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value=2025)
-- **Dividende continu de 1,06774 %.** Somme des distributions 2025 de 7,28113 USD par part, divisée par le spot. [Historique des distributions State Street](https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx)
-- **Volatilité de référence de 22,54 %.** Clôture du VIX1Y, fondé sur les options de l’indice S&P 500, utilisée comme approximation constante de la volatilité de SPY. [Historique Cboe](https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX1Y_History.csv)
-- **Sensibilité à 18,61 %.** Écart-type d’échantillon de 250 log-rendements journaliers de la valeur liquidative, du 31 décembre 2024 au 31 décembre 2025, annualisé par √252. [Historique de la valeur liquidative de State Street](https://www.ssga.com/library-content/products/fund-data/etfs/us/navhist-us-en-spy.xlsx)
+1. **Simulation.** Sous la mesure risque-neutre, la transition en logarithme est exacte entre les dates de fixing.
 
-Les paramètres, dates et sources sont figés dans [l’instantané SPY](data/spy_snapshot.json). Les options asiatiques sont des contrats définis pour l’étude. Leur moyenne arithmétique équipondère les clôtures de la dernière séance de chaque mois, échéance incluse. Les fractions d’année sont en ACT/365F, et le payoff est payé à l’échéance.
+   ```math
+   \log S_{t_j} = \log S_{t_{j-1}}
+     + (r-q-\sigma^2/2)\Delta t_j + \sigma\sqrt{\Delta t_j}\,Z_j
+   ```
 
-## Utiliser le pricer
+   Le générateur congruentiel multiplicatif de L’Ecuyer fournit les uniformes. Box–Muller les transforme par paires en normales standard. Le pricer calcule ensuite la moyenne arithmétique $A$ et le payoff actualisé, call $e^{-rT}(A-K)^+$ ou put $e^{-rT}(K-A)^+$.
+
+2. **Contrôle géométrique.** Pour les mêmes fixings, $\log G$ est la moyenne des logarithmes de spot et suit une loi normale. L’incrément brownien du pas $i$ apparaît dans $m-i+1$ des $m$ observations, d’où sa contribution $\sigma^2 [(m-i+1)/m]^2\Delta t_i$ à la variance de $\log G$. Cette loi donne le prix analytique du payoff géométrique $Y$, actualisé à $T$.
+
+3. **Estimateur et précision.** Un lot pilote estime $\widehat\beta=\operatorname{Cov}(X,Y)/\operatorname{Var}(Y)$, où $X$ est le payoff arithmétique actualisé. La production utilise un sous-flux disjoint. Elle moyenne $X$ pour le prix brut et $X-\widehat\beta(Y-\mathbb{E}[Y])$ pour le prix contrôlé. La demi-largeur de l’IC asymptotique à 95 % est $1{,}96\,s/\sqrt{N}$, calculée sur les valeurs qui alimentent l’estimateur. L’IC mesure le bruit Monte-Carlo pour le modèle et les entrées retenus.
+
+4. **Référence européenne et contrôles.** La référence Black–Scholes utilise le spot à l’échéance au lieu de la moyenne. Avec un seul fixing à $T$, l’asiatique contrôlée retrouve le prix européen. Les tests couvrent également la volatilité nulle, les grilles irrégulières et une comparaison avec une intégration numérique indépendante pour deux fixings.
+
+Références méthodologiques · A. W. Sanoussi Mani, *Pricing Monte Carlo ING4 FIN, S1 2026*, p. 7–12, 22, 35, 42–44, 48–51 et 76–77. [L’Ecuyer, 1999](https://doi.org/10.1090/S0025-5718-99-00996-5) · [Box et Muller, 1958](https://doi.org/10.1214/aoms/1177706645)
+
+## Lire les résultats
+
+- `prix.csv` contient les 30 comparaisons, les primes brutes et contrôlées, les prix européens et géométriques, les IC et les diagnostics de contrôle.
+- `convergence.csv` compare les temps et la précision à taille de production égale. `performance.csv` compare les temps médians pour atteindre une demi-largeur de **5 points de base du spot**, soit **0,1565 USD par action** pour GOOGL. L’essai retient la plus grande demi-largeur sur les calls, les puts et les répétitions. Le temps de calcul contrôlé inclut son lot pilote. La taille est estimée sur un échantillon séparé, avec une marge de 10 % et un minimum de 1 024 trajectoires.
+- `sensibilite.csv` compare les primes contrôlées à la monnaie entre les deux fenêtres de volatilité en réutilisant les mêmes tirages. `comparaison_prix.png` et `precision_temps.png` visualisent les comparaisons de prix et de précision.
+
+## Structure du code
+
+| Module | Rôle |
+| --- | --- |
+| `contrats.py` | Validation des paramètres et construction des dates d’observation |
+| `rng.py` | Générateur congruentiel, sous-flux et transformation de Box–Muller |
+| `black_scholes.py` | Moments de la moyenne géométrique et formules analytiques |
+| `pricer.py` | Simulation par lots, payoffs, estimateurs et intervalles de confiance |
+| `donnees.py` | Chargement de l’instantané |
+| `experiences.py` et `figures.py` | Grille, sensibilité, chronométrage, CSV et graphiques |
+| `run_tp.py` | Interface en ligne de commande |
+| `calibrage_indices.py` | Utilitaire indépendant pour l’ancien instantané SPX/RUT |
+
+Pour appeler le pricer directement, les taux et la volatilité s’expriment en décimal, les maturités en années et la fréquence en observations par an.
 
 ```python
 from asian_pricing import pricer_asiatique
 
 prix = pricer_asiatique(
-    spot=681.92, strike=681.92, volatilite=0.2254, taux=0.0348, maturite=1.0,
-    dividende=7.28113 / 681.92, frequence=12, simulations=50_000, pilote=5_000,
-    graine=2026,
+    spot=313.0, strike=313.0, volatilite=0.322302066636,
+    taux=0.0348, maturite=1.0, dividende=0.83 / 313.0,
+    frequence=12, simulations=50_000, pilote=5_000, graine=2026,
 )
-print(prix["call"]["controle"]["prix"], prix["put"]["controle"]["ic"])
+print(prix["call"]["controle"]["prix"])
+print(prix["put"]["controle"]["ic"])
 ```
 
-Les taux et la volatilité sont annuels et saisis en décimal. `frequence` donne le nombre de fixings par an. Passer `dates_observation` en fractions d’année pour une grille irrégulière. Pour chaque type d’option, le pricer retourne les estimations `naive` et `controle` ainsi que les références `europeenne` et `geometrique`.
-
-Les transitions exactes de Black-Scholes entre fixings utilisent des normales produites par un générateur congruentiel multiplicatif de L’Ecuyer et Box-Muller. Le prix analytique du payoff géométrique centre la variable de contrôle. Un lot pilote estime le coefficient, puis un lot de production disjoint fournit les prix et les intervalles de confiance à 95 %.
-
-- `prix.csv` rassemble les primes, les intervalles de confiance et les diagnostics du contrôle.
-- `performance.csv` compare les temps médians et les demi-largeurs maximales observées à une cible commune de cinq points de base du spot (environ 0,34 USD par part). Le coût du pilote est inclus.
-- `convergence.csv` suit le coût et la précision à nombre de trajectoires égal. `sensibilite.csv` montre l’effet d’une volatilité réalisée de 18,61 %.
-- `comparaison_prix.png` et `precision_temps.png` visualisent ces résultats. Les intervalles mesurent l’erreur d’échantillonnage pour les paramètres et le modèle retenus.
-
-## Étude SPX et RUT
-
-L’étude précédente sur les indices reste accessible avec son propre jeu de données et son rapport. Les conventions de calibration sont décrites dans [l’instantané SPX/RUT](data/market_snapshot.json). [Rapport SPX/RUT](rapport/sujet_2.pdf)
-
-```bash
-python run_tp.py --donnees data/market_snapshot.json --graine 42 --sans-affichage \
-  --sortie resultats/indices
-python -m asian_pricing.rapport --donnees data/market_snapshot.json \
-  --resultats resultats/indices --sortie resultats/indices/sujet_2.pdf
-```
-
-L’instantané de ces indices peut être recalibré à partir des quatre CSV d’origine, avec `python -m asian_pricing.donnees --csv-dir CHEMIN --output resultats/market_snapshot.json`. Le fichier de cotations Cboe est remplacé périodiquement. Les empreintes de l’instantané identifient les fichiers de la session utilisée.
-
-[L’Ecuyer, 1999](https://doi.org/10.1090/S0025-5718-99-00996-5) · [Box et Muller, 1958](https://doi.org/10.1214/aoms/1177706645) · [Kemna et Vorst, 1990](https://doi.org/10.1016/0378-4266(90)90039-5)
+Passer `dates_observation` en fractions d’année pour utiliser un calendrier précis à la place de `frequence`. Pour chaque type d’option, `pricer_asiatique` expose `naive`, `controle`, `europeenne` et `geometrique`. Le [jeu d’essai SPX/RUT](data/market_snapshot.json) se charge avec `--donnees data/market_snapshot.json`.

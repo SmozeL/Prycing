@@ -2,9 +2,10 @@ import math
 import unittest
 from datetime import date
 
-from asian_pricing.donnees import (
-    ECHEANCES, Fourchette, Paire, _calibrer, _prix_vanille, charger_marche,
+from asian_pricing.calibrage_indices import (
+    ECHEANCES, INSTANTANE, Fourchette, Paire, _calibrer, _prix_vanille,
 )
+from asian_pricing.donnees import charger_marche
 
 
 class TestDonnees(unittest.TestCase):
@@ -29,7 +30,7 @@ class TestDonnees(unittest.TestCase):
         self.assertEqual(diagnostic["temoins_total"], 4)
 
     def test_calendrier_et_parite_de_linstantane(self):
-        marche = charger_marche()
+        marche = charger_marche(INSTANTANE)
         origine = date.fromisoformat(marche["date_valorisation"])
         self.assertEqual([a["symbole"] for a in marche["actifs"]], ["SPX", "RUT"])
         for actif in marche["actifs"]:
@@ -48,6 +49,14 @@ class TestDonnees(unittest.TestCase):
                     ))
                     if echeance["date"] == "2027-06-30":
                         self.assertIn("2027-05-28", fixings)
+
+    def test_alphabet_est_linstantane_principal(self):
+        marche = charger_marche()
+        actif, = marche["actifs"]
+        self.assertEqual(actif["symbole"], "GOOGL")
+        self.assertEqual(actif["spot"], 313.0)
+        self.assertEqual([len(e["fixings"]) for e in actif["echeances"]], [6, 12, 24])
+        self.assertAlmostEqual(actif["echeances"][0]["dividende"], 0.83 / actif["spot"])
 
 
 if __name__ == "__main__":

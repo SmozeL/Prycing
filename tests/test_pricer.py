@@ -5,8 +5,9 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.special import ndtr
 
+from asian_pricing import pricer_asiatique
 from asian_pricing.black_scholes import moments_geometriques
-from asian_pricing.pricer import pricer_asiatique, pricer_grille
+from asian_pricing.pricer import pricer_grille
 
 
 def _reference_deux_fixings(spot, strike, taux, dividende, volatilite, t1, t2, maturite):
