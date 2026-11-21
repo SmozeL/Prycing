@@ -191,6 +191,40 @@ def exporter_resultats(resultats, dossier):
             chemin.replace(dossier / chemin.name)
 
 
+def _afficher_resultats(resultats):
+    print("\nPrix européens et estimateurs asiatiques (USD par action)")
+    print(f"{'Échéance':<10} {'Strike':>8} {'Type':<4} {'Européen':>10} "
+          f"{'MC brut':>10} {'MC contrôlé':>12}")
+    for ligne in resultats["prix"]:
+        print(f"{ligne['echeance']:<10} {ligne['strike']:>8.2f} {ligne['type']:<4} "
+              f"{ligne['prix_europeen']:>10.4f} {ligne['prix_asiatique_brut']:>10.4f} "
+              f"{ligne['prix_asiatique_controle']:>12.4f}")
+
+    print("\nGain de précision et de temps à la monnaie, à un an")
+    for ligne in resultats["performance"]:
+        regime = "N égal" if ligne["regime"] == "trajectoires_egales" else "Cible"
+        methode = "Brut" if ligne["methode"] == "naive" else "Contrôle"
+        demi_ic = ligne["demi_ic_max_usd"]
+        largeur = "IC indisponible" if demi_ic is None else f"demi-IC max {demi_ic:.4f} USD"
+        print(f"{regime:7} · {methode:8} · {ligne['trajectoires']:>6} trajectoires "
+              f"· {largeur} · {ligne['temps_median_ms']:.1f} ms")
+
+    mesures = {(ligne["regime"], ligne["methode"]): ligne for ligne in resultats["performance"]}
+    ic_brut = mesures["trajectoires_egales", "naive"]["demi_ic_max_usd"]
+    ic_controle = mesures["trajectoires_egales", "controle"]["demi_ic_max_usd"]
+    if ic_brut is not None and ic_controle:
+        print(f"Gain de précision à N égal (demi-IC brut / contrôlé) · ×{ic_brut / ic_controle:.1f}")
+
+    brut = mesures["precision_cible", "naive"]
+    controle = mesures["precision_cible", "controle"]
+    cible = controle["cible_usd"]
+    if brut["cible_atteinte"] and controle["cible_atteinte"]:
+        gain_temps = brut["temps_median_ms"] / controle["temps_median_ms"]
+        print(f"Gain de temps (demi-IC cible {cible:.4f} USD) · ×{gain_temps:.1f} (pilote inclus)")
+    else:
+        print(f"Gain de temps à confirmer · la cible de {cible:.4f} USD doit être atteinte par les deux méthodes.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sortie", type=Path, default=_SORTIE, help="Dossier des deux CSV.")
@@ -205,15 +239,7 @@ def main():
     except (ValueError, OSError) as erreur:
         parser.error(str(erreur))
 
-    print(f"{len(resultats['prix'])} primes dans prix.csv.")
-    print("Benchmark à la monnaie, à un an")
-    for ligne in resultats["performance"]:
-        regime = "N égal" if ligne["regime"] == "trajectoires_egales" else "Cible"
-        methode = "Brut" if ligne["methode"] == "naive" else "Contrôle"
-        demi_ic = ligne["demi_ic_max_usd"]
-        largeur = "IC indisponible" if demi_ic is None else f"demi-IC max {demi_ic:.4f} USD"
-        print(f"{regime:7} · {methode:8} · {ligne['trajectoires']:>6} trajectoires "
-              f"· {largeur} · {ligne['temps_median_ms']:.1f} ms")
+    _afficher_resultats(resultats)
     print(f"CSV enregistrés dans {args.sortie.resolve()}")
 
 
