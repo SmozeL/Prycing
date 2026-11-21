@@ -2,12 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Reproduire l’étude GOOGL",
+      "name": "Lancer l’étude GOOGL",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/run_tp.py",
       "cwd": "${workspaceFolder}",
-      "args": ["--graine", "2026"],
       "console": "integratedTerminal"
     }
   ]

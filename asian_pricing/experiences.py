@@ -13,7 +13,7 @@ from .pricer import pricer_grille
 _TYPES = ("call", "put")
 _METHODES = ("naive", "controle")
 _MARGE_DIMENSIONNEMENT = 1.10
-_MIN_PRODUCTION = 1_024
+_MIN_PRODUCTION = 2_000
 _MAX_PRODUCTION = 2_000_000
 
 
