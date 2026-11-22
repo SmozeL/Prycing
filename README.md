@@ -15,7 +15,7 @@ python run_tp.py
 
 Dans VS Code, sélectionner l’interpréteur de `.venv`, ouvrir `run_tp.py` et cliquer sur **Run Python File**, ou lancer la commande dans le terminal. Chaque exécution tire et affiche une nouvelle graine. Utiliser `python run_tp.py --graine 2026` pour rejouer la graine 2026 et `--sortie dossier` pour choisir où écrire les CSV.
 
-`asian_pricing.py` contient le pricer. `run_tp.py` contient les données de l’étude. Le terminal affiche les 18 comparaisons de prix et les gains de précision et de temps. Les résultats détaillés sont exportés dans `resultats/prix.csv` et `resultats/performance.csv` sans connexion réseau.
+`asian_pricing.py` contient le pricer. `run_tp.py` contient les données de l’étude. Le terminal affiche les 18 comparaisons de prix et les gains de précision et de temps. Pour le call et le put à la monnaie à un an, il affiche aussi la corrélation entre les payoffs arithmétique et géométrique sur les 50 000 trajectoires de production. Les résultats détaillés sont exportés dans `resultats/prix.csv` et `resultats/performance.csv` sans connexion réseau.
 
 ## Sous-jacent et hypothèses
 

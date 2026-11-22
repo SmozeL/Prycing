@@ -59,7 +59,9 @@ class _Simulations:
     def __call__(self, nb_fixings, strikes, trajectoires, methode):
         dates = _TEMPS_OBSERVATION[:nb_fixings]
         resultat = pricer_grille(
-            _SPOT, strikes, dates[-1], _TAUX, _DIVIDENDE, _VOLATILITE, dates,
+            spot=_SPOT, strikes=strikes, maturite=dates[-1],
+            taux=_TAUX, dividende=_DIVIDENDE, volatilite=_VOLATILITE,
+            dates_observation=dates,
             simulations=trajectoires, pilote=_PILOTE, graine=self.graine,
             decalage=self.prochain, methode=methode,
         )
@@ -78,11 +80,14 @@ def _demi_ic(estimation):
 def _grille_prix(calculer):
     strikes = [_SPOT * ratio for ratio in _STRIKES_RELATIFS]
     lignes = []
+    correlations_reference = {}
     for nb_fixings in _ECHEANCES:
         contrats = calculer(nb_fixings, strikes, _PRODUCTION, "les_deux")
         for ratio, contrat in zip(_STRIKES_RELATIFS, contrats):
             for type_option in _TYPES:
                 option = contrat[type_option]
+                if nb_fixings == _FIXINGS_REFERENCE and ratio == 1.0:
+                    correlations_reference[type_option] = option["controle"]["correlation"]
                 lignes.append({
                     "echeance": _CALENDRIER[nb_fixings - 1],
                     "fixings": nb_fixings,
@@ -98,7 +103,7 @@ def _grille_prix(calculer):
                     "pilote": _PILOTE,
                     "graine": calculer.graine,
                 })
-    return lignes
+    return lignes, correlations_reference
 
 
 def _tailles_cibles(echantillon, taille_echantillon, cible):
@@ -162,7 +167,7 @@ def _chronometrer(calculer, tailles, regime, cible=None):
 def _analyser(graine):
     """Produit les prix de la grille et le benchmark à la monnaie à un an."""
     calculer = _Simulations(graine)
-    prix = _grille_prix(calculer)
+    prix, correlations_reference = _grille_prix(calculer)
 
     # Un lot distinct sert à dimensionner les essais avant de les chronométrer.
     echantillon, = calculer(_FIXINGS_REFERENCE, [_SPOT], _DIMENSIONNEMENT, "les_deux")
@@ -171,7 +176,7 @@ def _analyser(graine):
         calculer, dict.fromkeys(_METHODES, _PRODUCTION), "trajectoires_egales",
     )
     performance.extend(_chronometrer(calculer, tailles, "precision_cible", _CIBLE_USD))
-    return {"prix": prix, "performance": performance}
+    return {"prix": prix, "performance": performance}, correlations_reference
 
 
 def exporter_resultats(resultats, dossier):
@@ -191,7 +196,7 @@ def exporter_resultats(resultats, dossier):
             chemin.replace(dossier / chemin.name)
 
 
-def _afficher_resultats(resultats):
+def _afficher_resultats(resultats, correlations_reference):
     print("\nPrix européens et estimateurs asiatiques (USD par action)")
     print(f"{'Échéance':<10} {'Strike':>8} {'Type':<4} {'Européen':>10} "
           f"{'MC brut':>10} {'MC contrôlé':>12}")
@@ -199,6 +204,13 @@ def _afficher_resultats(resultats):
         print(f"{ligne['echeance']:<10} {ligne['strike']:>8.2f} {ligne['type']:<4} "
               f"{ligne['prix_europeen']:>10.4f} {ligne['prix_asiatique_brut']:>10.4f} "
               f"{ligne['prix_asiatique_controle']:>12.4f}")
+
+    correlations = []
+    for type_option, valeur in correlations_reference.items():
+        texte = "indisponible" if valeur is None else f"{valeur:.5f}"
+        correlations.append(f"{type_option} {texte}")
+    print(f"\nCorrélation des payoffs arithmétique et géométrique à un an "
+          f"(strike {_SPOT:.2f} USD) · " + " · ".join(correlations))
 
     print("\nGain de précision et de temps à la monnaie, à un an")
     print(f"{_REPETITIONS} répétitions par méthode et par régime, avec ordre alterné.")
@@ -240,12 +252,12 @@ def main():
 
     try:
         print(f"GOOGL · Relevé du {_DATE_VALORISATION} · Graine {graine}", flush=True)
-        resultats = _analyser(graine)
+        resultats, correlations_reference = _analyser(graine)
         exporter_resultats(resultats, args.sortie)
     except (ValueError, OSError) as erreur:
         parser.error(str(erreur))
 
-    _afficher_resultats(resultats)
+    _afficher_resultats(resultats, correlations_reference)
     print(f"CSV enregistrés dans {args.sortie.resolve()}")
 
 
